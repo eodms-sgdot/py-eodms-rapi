@@ -1,0 +1,10 @@
+site_name: py-eodms-rapi
+site_url: https://py-eodms-rapi.readthedocs.io/en/latest/
+nav: 
+    - Home: index.md
+    - Submit an Image Search: search-rapi.md
+    - Order Images: order.md
+    - Download Images: download.md
+    - Examples: examples.md
+theme: readthedocs
+extra_css: [css/extra.css]
