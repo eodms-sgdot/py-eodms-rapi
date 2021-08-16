@@ -24,7 +24,7 @@ from eodms_rapi import EODMSRAPI
 rapi = EODMSRAPI('eodms-username', 'eodms-password')
 
 # Add an AOI to the search
-aoi = [('intersects', "C:\\temp\\Canada.geojson")]
+aoi = [('intersects', "POINT (-96.47 62.4)")]
 
 # Create a dictionary of query filters for the search
 filters = {'Beam Mnemonic': ('=', ['16M11', '16M13']), 
@@ -52,7 +52,7 @@ Using the results from the previous example:
 order_res = rapi.order(res)
 
 # Specify a folder location to download the images
-dest = "C:\\temp\\py-eodms-rapi"
+dest = "C:\\temp\\py_eodms_rapi"
 
 # Download the images from the order
 dn_res = rapi.download(order_res, dest)
