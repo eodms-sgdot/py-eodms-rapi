@@ -20,7 +20,7 @@ setup(
         "geomet",
     ],
     project_urls={
-        "Bug Tracker": "https://github.com/pypa/sampleproject/issues",
+        "Bug Tracker": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
