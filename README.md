@@ -23,8 +23,8 @@ from eodms_rapi import EODMSRAPI
 # Create the EODMSRAPI object
 rapi = EODMSRAPI('eodms-username', 'eodms-password')
 
-# Add an AOI to the search
-aoi = [('intersects', "POINT (-96.47 62.4)")]
+# Add a point to the search
+feat = [('intersects', "POINT (-96.47 62.4)")]
 
 # Create a dictionary of query filters for the search
 filters = {'Beam Mnemonic': ('=', ['16M11', '16M13']), 
@@ -34,7 +34,7 @@ filters = {'Beam Mnemonic': ('=', ['16M11', '16M13']),
 dates = [{"start": "20200513_120000", "end": "20200613_150000"}]
 
 # Submit the search to the EODMSRAPI, specifying the Collection
-rapi.search("RCMImageProducts", filters=filters, features=aoi, dates=dates)
+rapi.search("RCMImageProducts", filters=filters, features=feat, dates=dates)
 
 # Get the results from the search
 res = rapi.get_results('full')

@@ -73,11 +73,19 @@ class EODMSGeo:
         self.eodmsrapi = eodmsrapi
         
     def _is_wkt(self, in_feat):
+        """
+        Verifies if a string is WKT.
+        
+        :param in_feat: Input string containing a WKT.
+        :type  in_feat: str
+        
+        :return: True if valid WKT, False if not.
+        :rtype: boolean
+        """
+        
         try:
             wkt_val = wkt.loads(in_feat.upper())
-            # print("wkt_val: %s" % wkt_val)
         except (ValueError, TypeError) as e:
-            self.eodmsrapi._log_msg(str(e), 'warning')
             return False
         return True
         
@@ -100,7 +108,6 @@ class EODMSGeo:
         """
         
         if in_src is None:
-            # print("The AOI is None!")
             return None
             
         # If the source is in JSON format
@@ -108,46 +115,32 @@ class EODMSGeo:
             in_src = json.loads(in_src)
             
         if isinstance(in_src, dict):
-            # print("The AOI is JSON")
             self.feats = self.convert_toWKT(in_src, 'json')
             return self.feats
             
         if isinstance(in_src, list):
-            # print("The AOI is a list")
             self.feats = self.convert_toWKT(in_src, 'list')
             return self.feats
-            
-        # If the source is WKT
-        # if any(word.lower() in in_src.lower() for word in self.wkt_types):
-            # # Can only be a single WKT object
-            # self.feats = in_src
-            # return self.feats
-        if self._is_wkt(in_src):
-            # Can only be a single WKT object
-            self.feats = in_src
-            return self.feats
-            
+        
         # If the source is a file
         if os.path.isfile(in_src):
-            # print("The AOI is a file")
             self.feats = self.get_features(in_src)
             return self.feats
         
         if os.path.isdir(in_src):
-            # print("The AOI is a folder")
             return None
+            
+        if self._is_wkt(in_src):
+            # Can only be a single WKT object
+            self.feats = in_src
+            return self.feats
             
         # If the source is a list of coordinates
         if not isinstance(in_src, list):
             try:
                 in_src = eval(in_src)
             except SyntaxError as err:
-                # print("\n%sWARNING: %s" % (self.eodmsrapi._header, err))
                 self.logger.warning("%s" % err)
-                # print("#3")
-                # traceback.print_exc()
-                # self.eodmsrapi._log_msg(str(err), 'warning')
-                # print("#4")
                 return err
                 
     def convert_coords(self, coord_lst, geom_type):
