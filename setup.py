@@ -13,6 +13,7 @@ setup(
     license='LICENSE',
     description='EODMS RAPI Client is a Python3 package used to access the REST API service provided by the Earth Observation Data Management System (EODMS) from Natural Resources Canada.',
     long_description=open('README.md').read(),
+    long_description_content_type="text/markdown",
     install_requires=[
         "dateparser", 
         "requests",
