@@ -9,7 +9,7 @@ setup(
     packages=find_packages(),
     # scripts=['bin/script1','bin/script2'],
     include_package_data=True, 
-    url='https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi',
+    url='https://py-eodms-rapi.readthedocs.io/en/latest/',
     license='LICENSE',
     description='EODMS RAPI Client is a Python3 package used to access the REST API service provided by the Earth Observation Data Management System (EODMS) from Natural Resources Canada.',
     long_description=open('README.md').read(),
@@ -21,6 +21,7 @@ setup(
         "geomet",
     ],
     project_urls={
+        "Source": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi"
         "Bug Tracker": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi/issues",
     },
     classifiers=[

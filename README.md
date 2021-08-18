@@ -21,26 +21,23 @@ Here are a few examples on how to use the EODMS RAPI Client (```EODMSRAPI```). F
 from eodms_rapi import EODMSRAPI
 
 # Create the EODMSRAPI object
-rapi = EODMSRAPI('eodms-username', 'eodms-password')
+rapi = EODMSRAPI('your-username', 'your-password')
 
-# Add a point to the search
-feat = [('intersects', "POINT (-96.47 62.4)")]
+# Add an AOI to the search
+aoi = "C:\\temp\\Canada.shp"
 
 # Create a dictionary of query filters for the search
-filters = {'Beam Mnemonic': ('=', ['16M11', '16M13']), 
-            'Incidence Angle': ('>=', '35')}
+query_dict = {'Beam Mnemonic': ('=', ['16M11', '16M13']), 
+                'Incidence Angle': ('>=', '35')}
 
 # Set a date range for the search
-dates = [{"start": "20200513_120000", "end": "20200613_150000"}]
-
+dates = [{"start": "20200513_120000", "end": "20200513_150000"}]
+		
 # Submit the search to the EODMSRAPI, specifying the Collection
-rapi.search("RCMImageProducts", filters=filters, features=feat, dates=dates)
+rapi.search("RCMImageProducts", aoi, dates=dates, query=query_dict)
 
 # Get the results from the search
 res = rapi.get_results('full')
-
-# Print results
-rapi.print_results()
 ```
 
 ### Order and Download Images
@@ -52,7 +49,7 @@ Using the results from the previous example:
 order_res = rapi.order(res)
 
 # Specify a folder location to download the images
-dest = "C:\\temp\\py_eodms_rapi"
+dest = "C:\\temp\\py-eodms-rapi"
 
 # Download the images from the order
 dn_res = rapi.download(order_res, dest)
