@@ -13,9 +13,9 @@
 import os
 import sys
 import re
-print(os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('..'))
 
+print("sys_path: %s" % sys.path)
 
 # -- Project information -----------------------------------------------------
 
