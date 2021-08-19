@@ -1735,9 +1735,26 @@ class EODMSRAPI():
             
             Example:
                 
-                ``{'items': [{'recordId': '8023427', 'status': 'SUBMITTED', 'collectionId': 'RCMImageProducts', 'itemId': '346204', 'orderId': '50975'}, ...]}``
-            or
-                ``[{'recordId': '8023427', 'status': 'SUBMITTED', 'collectionId': 'RCMImageProducts', 'itemId': '346204', 'orderId': '50975'}, ...]``
+                .. code-block:: python
+                
+                    {'items': [
+                        {'recordId': '8023427', 
+                         'status': 'SUBMITTED', 
+                         'collectionId': 'RCMImageProducts', 
+                         'itemId': '346204', 
+                         'orderId': '50975'}, 
+                    ...]}
+                or
+                
+                .. code-block:: python
+                
+                    [{
+                        'recordId': '8023427', 
+                        'status': 'SUBMITTED', 
+                        'collectionId': 'RCMImageProducts', 
+                        'itemId': '346204', 
+                        'orderId': '50975'
+                    }, ...]
                 
         :type  items: list or dict
         :param dest: The local download folder location.
@@ -1948,8 +1965,7 @@ class EODMSRAPI():
         
     def get_fieldChoices(self, collection, field=None):
         """
-        Gets the avaiable choices for a specified field. If no choices exist,
-            then the data type is returned.
+        Gets the avaiable choices for a specified field. If no choices exist, then the data type is returned.
             
         :param collection: The collection containing the field.
         :type  collection: str
@@ -2285,12 +2301,15 @@ class EODMSRAPI():
         
         :param collection: The Collection ID for the query.
         :type  collection: str
-        :param filters: A dictionary of query filters and values in 
-                    the following format:
+        :param filters: A dictionary of query filters and values in the following format:
                     
                 ``{"|filter title|": ("|operator|", ["value1", "value2", ...]), ...}``
                 
-                Example: ``{"Beam Mnemonic": {'=': []}}``
+                Example: 
+                    
+                .. code-block:: python
+                
+                    {"Beam Mnemonic": {'=': []}}
         
         :type  filters: dict
         :param features: A list of tuples containing the operator and filenames or coordinates of features to use in the search. The features can be:
@@ -2299,13 +2318,17 @@ class EODMSRAPI():
                 - a WKT format string
                 - the 'geometry' entry from a GeoJSON Feature
                 - a list of coordinates (ex: ``[(x1, y1), (x2, y2), ...]``)
+                
         :type  features: list
         :param dates: A list of date range dictionaries with keys ``start`` and ``end``.
                 The values of the ``start`` and ``end`` can either be a string in format
                 ``yyyymmdd_hhmmss`` or a datetime.datetime object.
                 
                 Example:
-                    ``[{"start": "20201013_120000", "end": "20201013_150000"}]``
+                    
+                .. code-block:: python
+                    
+                    [{"start": "20201013_120000", "end": "20201013_150000"}]
                     
         :type  dates: list
         :param resultFields: A name of a field to include in the query results.
@@ -2396,8 +2419,7 @@ class EODMSRAPI():
             
             - ``raw``: Returns the JSON results straight from the RAPI.
             - ``full``: Returns a JSON with full metadata information.
-            - ``geojson``: Returns a FeatureCollection of the results
-                        (requires geojson package).
+            - ``geojson``: Returns a FeatureCollection of the results (requires geojson package).
                             
         :type  form: str
         
@@ -2447,10 +2469,9 @@ class EODMSRAPI():
         Sends an order to EODMS using the RAPI.
         
         :param results: A list of JSON results from the RAPI.
-                            
-                The results list must contain a ``collectionId`` key and 
-                a ``recordId`` key for each image.
-                
+            
+            The results list must contain a ``collectionId`` key and a ``recordId`` key for each image.
+            
         :type  results: list
         :param priority: Determines the priority of the order.
                 
@@ -2458,7 +2479,9 @@ class EODMSRAPI():
             pass a list of dictionaries containing the ``recordId`` (matching 
             the IDs in results) and ``priority``, such as:
             
-            ``[{"recordId": 7627902, "priority": "Low"}, ...]``
+            .. code-block:: python
+            
+                [{"recordId": 7627902, "priority": "Low"}, ...]
                     
             Priority options: "Low", "Medium", "High" or "Urgent"
         
@@ -2469,11 +2492,25 @@ class EODMSRAPI():
                 
                 **Parameter list**: ``[{"|internalName|": "|value|"}, ...]``
                 
-                    Example: ``[{"packagingFormat": "TARGZ"}, {"NOTIFICATION_EMAIL_ADDRESS": "kevin.ballantyne@canada.ca"}, ...]``
+                    Example: 
+                        
+                        .. code-block:: python
+                            
+                            [
+                                {"packagingFormat": "TARGZ"}, 
+                                {"NOTIFICATION_EMAIL_ADDRESS": "kevin.ballantyne@canada.ca"}, 
+                            ...]
                 
                 **Parameters for each record**: ``[{"recordId": |recordId|, "parameters": [{"|internalName|": "|value|"}, ...]}]``
                   
-                    Example: ``[{"recordId": 7627902, "parameters": [{"packagingFormat": "TARGZ"}, ...]}]``
+                    Example: 
+                        
+                        .. code-block:: python
+                            
+                            [
+                                {"recordId": 7627902, 
+                                 "parameters": [{"packagingFormat": "TARGZ"}, ...]}
+                            ]
         
         :type parameter: list
         """

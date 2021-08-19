@@ -52,8 +52,7 @@ except ImportError:
 
 class EODMSGeo:
     """
-    The Geo class contains all the methods and functions used to perform 
-        geographic processes mainly using OGR.
+    The Geo class contains all the methods and functions used to perform geographic processes mainly using OGR.
     """
     
     def __init__(self, eodmsrapi):
@@ -180,8 +179,7 @@ class EODMSGeo:
         
     def convert_imageGeom(self, coords, output='array'):
         """
-        Converts a list of coordinates from the RAPI to a polygon geometry, 
-            array of points or as WKT.
+        Converts a list of coordinates from the RAPI to a polygon geometry, array of points or as WKT.
         
         :param coords: A list of coordinates from the RAPI results.
         :type  coords: list
