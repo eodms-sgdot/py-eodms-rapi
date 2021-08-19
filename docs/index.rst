@@ -86,7 +86,7 @@ Contents
 	:maxdepth: 2
 	:caption: API
    
-	api/eodms_rapi.rst
+	eodms_rapi.rst
 
 Support
 -------
