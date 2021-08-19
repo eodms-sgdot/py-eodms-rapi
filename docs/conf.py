@@ -12,7 +12,6 @@
 #
 import os
 import sys
-print(os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('..'))
 
 
@@ -23,7 +22,9 @@ copyright = '2021, Kevin Ballantyne (Natural Resources Canada)'
 author = 'Kevin Ballantyne (Natural Resources Canada)'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+with open(os.path.join('..', 'eodms_rapi', '__init__.py'), 'r') as f:
+    init_txt = f.read()
+release = re.search(r"__version__ = \s*'([\d.*]+)'", init_txt).group(1)
 
 
 # -- General configuration ---------------------------------------------------
