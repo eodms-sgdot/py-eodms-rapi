@@ -13,8 +13,15 @@
 import os
 import sys
 import re
+<<<<<<< HEAD
 sys.path.insert(0, os.path.abspath('..'))
 
+=======
+sys.path.insert(0, os.path.abspath('../../../'))
+
+print("sys_path: %s" % sys.path)
+
+>>>>>>> 556c92f7a3ce80111ced1b61d79643222f5386d8
 # -- Project information -----------------------------------------------------
 
 project = 'py-eodms-rapi'
