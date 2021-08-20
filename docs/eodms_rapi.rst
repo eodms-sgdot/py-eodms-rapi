@@ -1,8 +1,6 @@
 eodms\_rapi package
 ===================
 
-Submodules
-----------
 
 eodms\_rapi.eodms module
 ------------------------
