@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 
 # Distribution / packaging
+_deploy_testpypi.bat
+_deploy_pypi.bat
+_build.bat
 .Python
 build/
 develop-eggs/
