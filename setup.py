@@ -19,7 +19,7 @@ setup(
         "geomet",
     ],
     project_urls={
-        "Source": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi"
+        "Source": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi", 
         "Bug Tracker": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi/issues",
     },
     classifiers=[
