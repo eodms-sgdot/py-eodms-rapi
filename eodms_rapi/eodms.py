@@ -120,8 +120,6 @@ class EODMSRAPI():
         :param password: The password of an EODMS account.
         :type  password: str
         """
-    
-        # print("\nInitializing EODMSRAPI, please wait...")
         
         # Create session
         self._session = requests.Session()
@@ -135,7 +133,6 @@ class EODMSRAPI():
         self.size_limit = None
         self.results = []
         self.res_mdata = None
-        #self.default_queryLimit = 1000
         self.limit_interval = 1000
         self.name_conv = 'camel'
         self.res_format = 'raw'
@@ -613,8 +610,6 @@ class EODMSRAPI():
                 # Check field in field_map
                 coll_fields = self.field_map[self.collection]
                 ui_fields = [f['uiField'] for f in coll_fields]
-                # print("coll_fields: %s" % coll_fields)
-                # print([f['uiField'] for f in coll_fields])
                 
                 for f in coll_fields:
                     if f['uiField'].find(name) > -1 or \

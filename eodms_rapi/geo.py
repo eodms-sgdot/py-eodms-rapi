@@ -26,11 +26,13 @@
 
 import os
 import sys
+import re
 from xml.etree import ElementTree
 import json
 import logging
 import traceback
 from geomet import wkt
+import decimal
 
 try:
     import ogr
@@ -70,23 +72,135 @@ class EODMSGeo:
         self.wkt_types = ['point', 'linestring', 'polygon', \
                         'multipoint', 'multilinestring', 'multipolygon']
         self.eodmsrapi = eodmsrapi
+    
+    def _convert_list(self, in_feat, out='wkt'):
+        """
+        Converts a list to a specified output.
         
-    def _is_wkt(self, in_feat):
+        :param in_feat: The input feature(s).
+        :type  in_feat: list
+        :param out: The type of output, either 'wkt' or 'json'.
+        :type  out: str
+        
+        :return: The converted feature(s) to the specified output.
+        :rtype: json or str
+        """
+        
+        pnts = [list(p) for p in in_feat]
+            
+        if len(pnts) == 1:
+            geojson = {"type": "Point", "coordinates": pnts[0]}
+        else:
+            geojson = {"type": "Polygon", "coordinates": [pnts]}
+        
+        if out == 'json':
+            return geojson
+        else:
+            out_wkt = wkt.dumps(geojson)
+            
+        return out_wkt
+    
+    def _is_wkt(self, in_feat, show_error=False, return_wkt=False):
         """
         Verifies if a string is WKT.
         
         :param in_feat: Input string containing a WKT.
         :type  in_feat: str
+        :param show_error: Determines whether to display the error.
+        :type  show_error: boolean
+        :param return_wkt: Determines whether to return the converted WKT if True.
+        :type  return_wkt: boolean
         
-        :return: True if valid WKT, False if not.
-        :rtype: boolean
+        :return: If the input is a valid WKT, return WKT if return_wkt is True or return just True; False if not valid.
+        :rtype: str or boolean
         """
         
         try:
             wkt_val = wkt.loads(in_feat.upper())
         except (ValueError, TypeError) as e:
+            if show_error:
+                self.eodmsrapi._log_msg(str(e), 'warning')
             return False
-        return True
+            
+        if return_wkt:
+            return wkt_val
+        else:
+            return True
+            
+    def _remove_zeroTrail(self, in_wkt):
+        """
+        Removes the trailing zeros in coordinates after the decimal in a WKT.
+        
+        :param in_wkt: The input WKT.
+        :type  in_wkt: str
+        
+        :return: The WKT without trailing zeros after the decimal.
+        :rtype: str
+        """
+        
+        numbers = re.findall("\d+\.\d+", in_wkt)
+        
+        out_wkt = in_wkt
+        for num in numbers:
+            flt_num = float(num)
+            out_wkt = out_wkt.replace(num, str(flt_num))
+            
+        return out_wkt
+        
+    def _split_multi(self, feats, in_type='json', out='wkt'):
+        """
+        Splits multi-geometry into several valid geometry for the RAPI.
+        
+        :param feats: The input feature(s).
+        :type  feats: json, str or list
+        :param in_type: Helps determine the type of input (either 'wkt', 'json' or 'list').
+        :type  in_type: str
+        :param out: Determines the type of output (either 'wkt' or 'json').
+        :type  out: str
+        
+        :return: The geometry (or geometries) in the specified output type.
+        :rtype: json, str
+        """
+        
+        if in_type == 'wkt':
+            
+            # Convert feats to json for easier manipulation
+            json_geom = self._is_wkt(feats, True, True)
+            
+        elif in_type == 'list':
+            json_geom = self._convert_list(feats, 'json')
+        
+        geom_type = json_geom.get('type').lower()
+        if geom_type.find('multi') > -1:
+            feat_coords = json_geom.get('coordinates')
+            out_geom = []
+            if geom_type == 'multipoint':
+                for pnt in feat_coords:
+                    geom = {'type': 'Point', 'coordinates': pnt}
+                    out_geom.append(geom)
+            elif geom_type == 'multilinestring':
+                for line in feat_coords:
+                    geom = {'type': 'LineString', 'coordinates': line}
+                    out_geom.append(geom)
+            elif geom_type == 'multipolygon':
+                for poly in feat_coords:
+                    geom = {'type': 'Polygon', 'coordinates': poly}
+                    out_geom.append(geom)
+        else:
+            out_geom = json_geom
+        
+        if out == 'wkt':
+            out_feats = []
+            if isinstance(out_geom, list):
+                for g in out_geom:
+                    wkt_feat = self.convert_toWKT(g, 'json')
+                    out_feats.append(wkt_feat)
+            else:
+                out_feats = self.convert_toWKT(out_geom, 'json')
+        else:
+            out_feats = out_geom
+        
+        return out_feats
         
     def add_geom(self, in_src):
         """
@@ -114,11 +228,13 @@ class EODMSGeo:
             in_src = json.loads(in_src)
             
         if isinstance(in_src, dict):
-            self.feats = self.convert_toWKT(in_src, 'json')
+            # self.feats = self.convert_toWKT(in_src, 'json')
+            self.feats = self._split_multi(in_src, 'json')
             return self.feats
             
         if isinstance(in_src, list):
-            self.feats = self.convert_toWKT(in_src, 'list')
+            # self.feats = self.convert_toWKT(in_src, 'list')
+            self.feats = self._split_multi(in_src, 'list')
             return self.feats
         
         # If the source is a file
@@ -128,11 +244,12 @@ class EODMSGeo:
         
         if os.path.isdir(in_src):
             return None
-            
-        if self._is_wkt(in_src):
-            # Can only be a single WKT object
-            self.feats = in_src
-            return self.feats
+        
+        if in_src.find('(') > -1 and in_src.find(')') > -1:
+            if self._is_wkt(in_src, True):
+                # Can only be a single WKT object
+                self.feats = self._split_multi(in_src, 'wkt')
+                return self.feats
             
         # If the source is a list of coordinates
         if not isinstance(in_src, list):
@@ -248,22 +365,22 @@ class EODMSGeo:
             else:
                 return pnt_array
             
-    def convert_fromWKT(self, in_feat):
-        """
-        Converts a WKT to a GDAL geometry.
+    # def convert_fromWKT(self, in_feat):
+        # """
+        # Converts a WKT to a GDAL geometry.
         
-        :param in_feat: The WKT of the feature.
-        :type  in_feat: str
+        # :param in_feat: The WKT of the feature.
+        # :type  in_feat: str
         
-        :return: The polygon geometry of the input WKT.
-        :rtype:  ogr.Geometry
+        # :return: The polygon geometry of the input WKT.
+        # :rtype:  ogr.Geometry
         
-        """
+        # """
         
-        if GDAL_INSTALLED:
-            out_poly = ogr.CreateGeometryFromWkt(in_feat)
+        # if GDAL_INSTALLED:
+            # out_poly = ogr.CreateGeometryFromWkt(in_feat)
         
-        return out_poly
+        # return out_poly
         
     def convert_toWKT(self, in_feat, in_type):
         """
@@ -282,26 +399,21 @@ class EODMSGeo:
         if in_type == 'json':
             out_wkt = wkt.dumps(in_feat)
         elif in_type == 'list':
-            pnts = [list(p) for p in in_feat]
-            
-            if len(pnts) == 1:
-                geojson = {"type": "Point", "coordinates": pnts[0]}
-            else:
-                geojson = {"type": "Polygon", "coordinates": [pnts]}
-            
-            out_wkt = wkt.dumps(geojson)
-            
+            out_wkt = self._convert_list(in_feat)
+        
+        out_wkt = self._remove_zeroTrail(out_wkt)
+        
         return out_wkt
             
     def convert_toGeoJSON(self, results):
         """
         Converts a get of RAPI results to GeoJSON geometries.
         
-        Args:
-            results (list): A list of results from the RAPI.
-            
-        Returns:
-            dict: A dictionary of a GeoJSON FeatureCollection.
+        :param results: A list of results from the RAPI.
+        :type  results: list
+        
+        :return: A dictionary of a GeoJSON FeatureCollection.
+        :rtype: dict
         """
         
         features = [{"type": "Feature", "geometry": \
@@ -417,7 +529,7 @@ class EODMSGeo:
                             
                         json_geom = self.convert_coords(coord_lst, geom_type)
                         
-                        wkt_feat = wkt.dumps(json_geom, decimals=3)
+                        wkt_feat = wkt.dumps(json_geom)
                             
                         out_feats.append(wkt_feat)
                 else:
@@ -439,7 +551,7 @@ class EODMSGeo:
                         
                         json_geom = self.convert_coords(coord_lst, geom_type)
                         
-                        wkt_feat = wkt.dumps(json_geom, decimals=3)
+                        wkt_feat = wkt.dumps(json_geom)
                             
                         out_feats.append(wkt_feat)
                 
@@ -450,7 +562,7 @@ class EODMSGeo:
                 feats = data['features']
                 for f in feats:
                     
-                    wkt_feat = wkt.dumps(f['geometry'], decimals=3)
+                    wkt_feat = wkt.dumps(f['geometry'])
                                 
                     out_feats.append(wkt_feat)
                             

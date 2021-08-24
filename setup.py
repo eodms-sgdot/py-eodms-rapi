@@ -2,12 +2,10 @@ from setuptools import find_packages, setup
 
 setup(
     name='py-eodms-rapi',
-    version='1.0.1',
+    version='1.0.2'
     author='Kevin Ballantyne (Natural Resources Canada)',
     author_email='kevin.ballantyne@nrcan-rncan.gc.ca',
-    # packages=['package_name', 'package_name.test'],
     packages=find_packages(),
-    # scripts=['bin/script1','bin/script2'],
     include_package_data=True, 
     url='https://py-eodms-rapi.readthedocs.io/en/latest/',
     license='LICENSE',
