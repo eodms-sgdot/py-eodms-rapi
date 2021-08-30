@@ -169,6 +169,8 @@ class EODMSGeo:
             
         elif in_type == 'list':
             json_geom = self._convert_list(feats, 'json')
+        else:
+            json_geom = feats
         
         geom_type = json_geom.get('type').lower()
         if geom_type.find('multi') > -1:
@@ -529,9 +531,12 @@ class EODMSGeo:
                             
                         json_geom = self.convert_coords(coord_lst, geom_type)
                         
-                        wkt_feat = wkt.dumps(json_geom)
+                        wkt_feat = self._split_multi(json_geom)
                             
-                        out_feats.append(wkt_feat)
+                        if isinstance(wkt_feat, list):
+                            out_feats += wkt_feat
+                        else:
+                            out_feats.append(wkt_feat)
                 else:
                     for plcmark in root.findall('.//{http://www.opengis.net/' \
                         'kml/2.2}Placemark'):
@@ -551,9 +556,12 @@ class EODMSGeo:
                         
                         json_geom = self.convert_coords(coord_lst, geom_type)
                         
-                        wkt_feat = wkt.dumps(json_geom)
-                            
-                        out_feats.append(wkt_feat)
+                        wkt_feat = self._split_multi(json_geom)
+                        
+                        if isinstance(wkt_feat, list):
+                            out_feats += wkt_feat
+                        else:
+                            out_feats.append(wkt_feat)
                 
             elif in_src.find('.json') > -1 or in_src.find('.geojson') > -1:
                 with open(in_src) as f:
@@ -562,9 +570,12 @@ class EODMSGeo:
                 feats = data['features']
                 for f in feats:
                     
-                    wkt_feat = wkt.dumps(f['geometry'])
+                    wkt_feat = self._split_multi(f['geometry'])
                                 
-                    out_feats.append(wkt_feat)
+                    if isinstance(wkt_feat, list):
+                        out_feats += wkt_feat
+                    else:
+                        out_feats.append(wkt_feat)
                             
             elif in_src.find('.shp') > -1:
                 msg = "Could not open shapefile. The GDAL Python Package " \

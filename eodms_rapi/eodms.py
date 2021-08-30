@@ -1365,6 +1365,8 @@ class EODMSRAPI():
                     self.geoms = [self.geoms] \
                         if not isinstance(self.geoms, list) else self.geoms
                     
+                    print("self.geoms: %s" % self.geoms)
+                    
                     for g in self.geoms:
                         geom_lst.append('%s %s %s' % (field_id, op, g))
             
