@@ -92,11 +92,11 @@ The **date range** is either:
 - A list of date range dictionaries containing a *start* and *end* key. The date values should be in format *YYYYMMDD_HHMMSS*.
 - A date of a previous time interval (ex: '24 hours', '7 days'). Available intervals are 'hour', 'day', 'week', 'month' or 'year' (plural is permitted).
 
-For example, to search for images between January 1, 2019 at midnight to September 15, 2019 at 3:35:55 PM and between October 13, 2020 at 12 noon to November 13, 2020 at 3pm, use:
+For example, to search for images between January 1, 2019 at midnight to September 15, 2019 at 3:35:55 PM and in the last 3 days, use:
 
 .. code-block:: python
 
-   >>> dates = [{"start": "20190101_000000", "end": "20190915_153555"}, {"start": "20201013_120000", "end": "20201113_150000"}]
+   >>> dates = [{"start": "20190101_000000", "end": "20190915_153555"}, "3 days"]
 
 Query Filter(s)
 ---------------
