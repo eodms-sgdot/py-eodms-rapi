@@ -37,6 +37,7 @@ import datetime
 import pytz
 import time
 import pprint
+import dateparser
 import re
 import dateutil.parser
 from dateutil.tz import tzlocal
@@ -374,7 +375,6 @@ class EODMSRAPI():
         
         if isinstance(metadata_fields, QueryError):
             msg = "Could not generate metadata for the results."
-            # print("\n%sWARNING: %s" % (self._header, msg))
             self._log_msg(msg, 'warning')
             return None
         
@@ -1324,17 +1324,26 @@ class EODMSRAPI():
             
             date_queries = []
             for rng in self.dates:
-                if 'start' not in rng.keys():
-                    break
-                
-                start = self._convert_date(rng.get('start'), \
-                                "%Y%m%d_%H%M%S", \
-                                out_form="%Y-%m-%dT%H:%M:%SZ")
-                end = self._convert_date(rng.get('end'), "%Y%m%d_%H%M%S", \
-                                out_form="%Y-%m-%dT%H:%M:%SZ")
-                                
-                if start is None or end is None:
-                    continue
+                if isinstance(rng, str):
+                    time_words = ['hour', 'day', 'week', 'month', 'year']
+                    
+                    if any(word in rng for word in time_words):
+                        start = dateparser.parse(rng).strftime(\
+                                "%Y%m%d_%H%M%S")
+                        end = datetime.datetime.now().strftime(\
+                                "%Y%m%d_%H%M%S")
+                else:
+                    if 'start' not in rng.keys():
+                        break
+                    
+                    start = self._convert_date(rng.get('start'), \
+                                    "%Y%m%d_%H%M%S", \
+                                    out_form="%Y-%m-%dT%H:%M:%SZ")
+                    end = self._convert_date(rng.get('end'), "%Y%m%d_%H%M%S", \
+                                    out_form="%Y-%m-%dT%H:%M:%SZ")
+                                    
+                    if start is None or end is None:
+                        continue
                 
                 date_queries.append("%s>='%s' AND %s<='%s'" % \
                     (field_id, start, field_id, end))
@@ -1364,8 +1373,6 @@ class EODMSRAPI():
 
                     self.geoms = [self.geoms] \
                         if not isinstance(self.geoms, list) else self.geoms
-                    
-                    print("self.geoms: %s" % self.geoms)
                     
                     for g in self.geoms:
                         geom_lst.append('%s %s %s' % (field_id, op, g))
@@ -1999,11 +2006,11 @@ class EODMSRAPI():
                                 choices.append(value)
                         return choices
                     else:
-                        return 'Data type: %s' % v.get('datatype')
+                        return {'data_type': v.get('datatype')}
         
         return all_fields
         
-    def get_collections(self, as_list=False, titles=False, redo=False):
+    def get_collections(self, as_list=False, opt='id', redo=False):
         """
         Gets a list of available collections for the current user.
         
@@ -2019,12 +2026,16 @@ class EODMSRAPI():
         
         if self.rapi_collections and not redo:
             if as_list:
-                if titles:
+                if opt == 'title':
                     collections = [i['title'] for i in \
                                 self.rapi_collections.values()]
+                elif opt == 'both':
+                    collections = [{'id': k, 'title': v['title']} \
+                            for k, v in self.rapi_collections.items()]
                 else:
                     collections = list(self.rapi_collections.keys())
                 return collections
+                
             return self.rapi_collections
         
         # Create the query to get available collections for the current user
@@ -2070,9 +2081,12 @@ class EODMSRAPI():
         
         # If as_list is True, convert dictionary to list of collection IDs
         if as_list:
-            if titles:
+            if opt == 'title':
                 collections = [i['title'] for i in \
                             self.rapi_collections.values()]
+            elif opt == 'both':
+                collections = [{'id': k, 'title': v['title']} \
+                            for k, v in self.rapi_collections.items()]
             else:
                 collections = list(self.rapi_collections.keys())
             return collections
@@ -2387,9 +2401,6 @@ class EODMSRAPI():
         
         query_str = urlencode(params)
         self._search_url = "%s/search?%s" % (self.rapi_root, query_str)
-        
-        print()
-        print(self._search_url)
         
         # Clear self.results
         self.results = []
