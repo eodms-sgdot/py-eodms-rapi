@@ -90,7 +90,7 @@ Date Range(s)
 The **date range** is either:
 
 - A list of date range dictionaries containing a *start* and *end* key. The date values should be in format *YYYYMMDD_HHMMSS*.
-- A date of a previous time interval (ex: '24 hours', '7 days')
+- A date of a previous time interval (ex: '24 hours', '7 days'). Available intervals are 'hour', 'day', 'week', 'month' or 'year' (plural is permitted).
 
 For example, to search for images between January 1, 2019 at midnight to September 15, 2019 at 3:35:55 PM and between October 13, 2020 at 12 noon to November 13, 2020 at 3pm, use:
 
