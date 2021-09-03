@@ -87,7 +87,10 @@ WKT example to get results for the easternmost and westernmost points of Canada:
 Date Range(s)
 -------------
 
-The **date range** is a list of date range dictionaries containing a *start* and *end* key. The date values should be in format *YYYYMMDD_HHMMSS*.
+The **date range** is either:
+
+- A list of date range dictionaries containing a *start* and *end* key. The date values should be in format *YYYYMMDD_HHMMSS*.
+- A date of a previous time interval (ex: '24 hours', '7 days')
 
 For example, to search for images between January 1, 2019 at midnight to September 15, 2019 at 3:35:55 PM and between October 13, 2020 at 12 noon to November 13, 2020 at 3pm, use:
 
