@@ -10,7 +10,7 @@ EODMS RAPI Client is a Python3 package used to access the REST API service provi
 The package can be installed using pip:
 
 ```bash
-pip install pg-eodms-rapi
+pip install py-eodms-rapi
 ```
 
 ## Basic Usage
