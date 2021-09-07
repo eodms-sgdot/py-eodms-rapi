@@ -13,7 +13,7 @@ The package is installed using the pip command
 
 .. code-block:: bash
 
-   pip install pg-eodms-rapi
+   pip install py-eodms-rapi
 
 The installation will also add the following packages:
 
@@ -86,7 +86,7 @@ Contents
 	:maxdepth: 2
 	:caption: API
    
-	eodms_rapi.rst
+	api/eodms_rapi.rst
 
 Support
 -------
