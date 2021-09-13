@@ -1819,8 +1819,8 @@ class EODMSRAPI():
                         msg = "\n  The following Order Item has failed:"
                         if status_mess is None:
                             msg += "\n    Order Item Id: %s\n" \
-                                    "    Record Id: %s" % \
-                                    "    Collection: %s\n" \
+                                    "    Record Id: %s" \
+                                    "    Collection: %s\n" % \
                                     (cur_item['itemId'], \
                                     cur_item['recordId'], \
                                     cur_item['collectionId'])
