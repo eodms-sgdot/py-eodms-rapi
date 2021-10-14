@@ -145,6 +145,8 @@ class EODMSRAPI():
         self.aoi = None
         self.dates = None
         self.feats = None
+        self.max_results = None
+        self._rapi_url = None
         self.start = datetime.datetime.now()
         
         self.geo = EODMSGeo(self)
@@ -308,52 +310,6 @@ class EODMSRAPI():
         else:
             return self._to_camelCase(field)
             
-    def _download_image(self, url, dest_fn, fsize):
-        """
-        Given a list of remote and local items, download the remote data 
-            if it is not already found locally.
-            
-        (Adapted from the eodms-api-client (https://pypi.org/project/eodms-api-client/) developed by Mike Brady)
-        
-        :param url: The download URL of the image.
-        :type  url: str
-        :param dest_fn: The local destination filename for the download.
-        :type  dest_fn: str
-        :param fsize: The total filesize of the image.
-        :type  fsize: int
-        """
-        
-        # If we have an existing local file, check the filesize against the manifest
-        if os.path.exists(dest_fn):
-            # if all-good, continue to next file
-            if os.stat(dest_fn).st_size == fsize:
-                msg = "No download necessary. " \
-                    "Local file already exists: %s" % dest_fn
-                self._log_msg(msg)
-                return None
-            # Otherwise, delete the incomplete/malformed local file and redownload
-            else:
-                msg = 'Filesize mismatch with %s. Re-downloading...' % \
-                    os.path.basename(dest_fn)
-                self._log_msg(msg, 'warning')
-                os.remove(dest_fn)
-                
-        # Use streamed download so we can wrap nicely with tqdm
-        with self._session.get(url, stream=True) as stream:
-            with open(dest_fn, 'wb') as pipe:
-                with tqdm.wrapattr(
-                    pipe,
-                    method='write',
-                    miniters=1,
-                    total=fsize,
-                    desc="%s%s" % (self._header, os.path.basename(dest_fn))
-                ) as file_out:
-                    for chunk in stream.iter_content(chunk_size=1024):
-                        file_out.write(chunk)
-                        
-        msg = '%s has been downloaded.' % dest_fn
-        self._log_msg(msg)
-            
     def _fetch_metadata(self, max_workers=4, len_timeout=20.0):
         """
         Fetches all metadata for a given record
@@ -377,6 +333,11 @@ class EODMSRAPI():
             msg = "Could not generate metadata for the results."
             self._log_msg(msg, 'warning')
             return None
+            
+        # print("self.results: %s" % self.results)
+        
+        if isinstance(self.results, dict):
+            self.results = [self.results]
         
         n_urls = len(self.results)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -385,8 +346,8 @@ class EODMSRAPI():
                     executor.map(
                         self._fetch_single_record_metadata,
                         self.results,
-                        [metadata_fields] * n_urls,
                         [len_timeout] * n_urls, 
+                        [metadata_fields] * n_urls,
                     ),
                     desc='%sFetching result metadata' % self._header,
                     total=n_urls,
@@ -397,7 +358,7 @@ class EODMSRAPI():
         
         return res
         
-    def _fetch_single_record_metadata(self, record, keys, timeout):
+    def _fetch_single_record_metadata(self, record, timeout, keys):
         """
         Fetches a single image's metadata.
         
@@ -406,17 +367,16 @@ class EODMSRAPI():
         
         :param record: A dictionary of an image record.
         :type  record: dict
-        :param keys: A list of metadata keys.
-        :type  keys: list
         :param timeout: The time in seconds to wait before timing out.
         :type  timeout: float
+        :param keys: A list of metadata keys.
+        :type  keys: list
             
         :return: Dictionary containing the keys and geometry metadata for 
                     the given image.
         :rtype: dict
         """
         
-        metadata = {}
         r = self._submit(record['thisRecordUrl'], timeout, as_json=False)
         
         if r is None: return None
@@ -433,52 +393,9 @@ class EODMSRAPI():
             err_msg = "Could not retrieve metadata."
             self._log_msg(err_msg, 'warning')
             image_res = record
-        
-        # Add all record info
-        record_info = {}
-        
-        # Add metadata at start
-        metadata[self._get_conv('recordId')] = \
-            image_res['recordId']
-        metadata[self._get_conv('collectionId')] = \
-            image_res['collectionId']
-        metadata[self._get_conv('geometry')] = \
-            image_res['geometry']
-        
-        exclude = [self._get_conv('recordId'), \
-                    self._get_conv('collectionId'), \
-                    self._get_conv('geometry'), \
-                    self._get_conv('metadata2'), \
-                    self._get_conv('metadata')]
-                    
-        for k in image_res.keys():
-            if self._get_conv(k) not in exclude:
-                metadata[self._get_conv(k)] = image_res[k]
-        
-        # Add remaining metadata
-        for k in keys:
-            mdata_key = res_key = k
-            if isinstance(k, list):
-                mdata_key = k[0]
-                res_key = k[1]
             
-            mdata_key = self._get_conv(mdata_key)
-            
-            if mdata_key in exclude: continue
-            
-            if res_key in image_res.keys():
-                metadata[mdata_key] = image_res[res_key]
-            else:
-                vals = [f[1] for f in image_res['metadata'] \
-                        if f[0] == res_key]
-                if len(vals) > 0:
-                    metadata[mdata_key] = vals[0]
+        metadata = self._parse_metadata(image_res, keys)
         
-        if self.res_format == 'full':
-            wkt_field = self._get_conv('WKT Geometry')
-            metadata[wkt_field] = self.geo.convert_imageGeom(\
-                                image_res['geometry'], 'wkt')
-            
         return metadata
         
     def _get_dateRange(self, items):
@@ -1269,6 +1186,88 @@ class EODMSRAPI():
             out_results.append(new_res)
             
         return out_results
+        
+    def _parse_metadata(self, image_res, keys=None):
+        """
+        Parses the metadata results from the RAPI for better JSON.
+        
+        :param image_res: A dictionary of a single record from the RAPI.
+        :type  image_res: dict
+        """
+        
+        if 'metadata' not in image_res.keys():
+            # The image result has already been parsed
+            return image_res
+        
+        metadata = {}
+        
+        # Add the following at the start of the metadata
+        metadata[self._get_conv('recordId')] = \
+            image_res['recordId']
+        metadata[self._get_conv('collectionId')] = \
+            image_res['collectionId']
+        if 'geometry' in image_res.keys():
+            metadata[self._get_conv('geometry')] = \
+                image_res['geometry']
+        
+        # Exclude what's already been added and other metadata fields
+        exclude = [self._get_conv('recordId'), \
+                    self._get_conv('collectionId'), \
+                    self._get_conv('geometry')]
+        
+        # Remove 'metadata' from metadata
+        # if not self.res_format == 'brief':
+        #     exclude.append(self._get_conv('metadata'))
+        
+        coll_keys = self._get_metaKeys()
+                    
+        for k, v in image_res.items():
+            if self._get_conv(k) not in exclude:
+                if k == 'metadata': continue
+                elif k == 'metadata2':
+                    for mdata in v:
+                        mdata_field = mdata['label']
+                        mdata_field = self._get_conv(mdata_field)
+                        metadata[mdata_field] = mdata['value']
+                else:
+                    metadata[self._get_conv(k)] = v
+        
+        # answer = input("Press enter...")
+        # for k in keys:
+            # mdata_key = res_key = k
+            # if isinstance(k, list):
+                # mdata_key = k[0]
+                # res_key = k[1]
+                
+            # # print("mdata_key: %s" % mdata_key)
+            # # print("res_key: %s" % res_key)
+            
+            # mdata_key = self._get_conv(mdata_key)
+            
+            # # print("mdata_key: %s" % mdata_key)
+            # # print("image_res.keys(): %s" % image_res.keys())
+            
+            # if mdata_key in exclude: continue
+            
+            # if res_key in image_res.keys():
+                # metadata[mdata_key] = image_res[res_key]
+            # else:
+                # if self.res_format == 'brief':
+                    # for f in image_res['metadata']:
+                        # mkey = self._get_conv(f[0])
+                        # metadata[mkey] = f[1]
+                # else:
+                    # vals = [f[1] for f in image_res['metadata'] \
+                            # if f[0] == res_key]
+                    # if len(vals) > 0:
+                        # metadata[mdata_key] = vals[0]
+        
+        if self.res_format == 'full':
+            wkt_field = self._get_conv('WKT Geometry')
+            metadata[wkt_field] = self.geo.convert_imageGeom(\
+                                image_res['geometry'], 'wkt')
+            
+        return metadata
     
     def _parse_range(self, field, start, end):
         """
@@ -1462,12 +1461,18 @@ class EODMSRAPI():
         msg = "Querying records within %s to %s..." % (start, end)
         self._log_msg(msg)
         
-        logger.debug("RAPI Query URL: %s" % self._search_url)
-        r = self._submit(self._search_url, as_json=False)
+        logger.debug("RAPI Query URL: %s" % self._rapi_url)
+        r = self._submit(self._rapi_url, as_json=False)
         
         if r is None: return None
         
         if isinstance(r, QueryError):
+            err_msg = r._get_msgs(True)
+            if err_msg.find('404 Client Error') > -1 or \
+                err_msg.find('400 Client Error') > -1 or \
+                err_msg.find('500 Server Error'):
+                self.results = r
+                return self.results
             msg = 'Retrying in 3 seconds...'
             self._log_msg(msg, 'warning')
             time.sleep(3)
@@ -1475,7 +1480,6 @@ class EODMSRAPI():
             
         if r.ok:
             data = r.json()
-                
             
             tot_results = int(data['totalResults'])
             if tot_results == 0:
@@ -1486,17 +1490,17 @@ class EODMSRAPI():
             
             self.results += data['results']
             first_result = len(self.results) + 1
-            if self._search_url.find('&firstResult') > -1:
+            if self._rapi_url.find('&firstResult') > -1:
                 old_firstResult = int(re.search(
                                         r'&firstResult=([\d*]+)', \
-                                        self._search_url
+                                        self._rapi_url
                                     ).group(1))
-                self._search_url = self._search_url.replace(
+                self._rapi_url = self._rapi_url.replace(
                                     '&firstResult=%d' % old_firstResult, 
                                     '&firstResult=%d' % first_result
                                    )
             else:
-                self._search_url += '&firstResult=%s' % first_result
+                self._rapi_url += '&firstResult=%s' % first_result
             return self._submit_search()
             
     def _submit(self, query_url, timeout=None, 
@@ -1551,7 +1555,25 @@ class EODMSRAPI():
                 if msg.find('Unauthorized') > -1 or \
                     msg.find('404 Client Error: Not Found for url') > -1:
                     err = msg
-                    attempt = self.attempts
+                    query_err = QueryError(err)
+            
+                    if self._check_auth(query_err): return None
+                    
+                    return query_err
+                elif msg.find('400 Client Error') > -1:
+                    err = msg
+                    query_err = QueryError(err)
+            
+                    if self._check_auth(query_err): return None
+                    
+                    return query_err
+                elif msg.find('500 Server Error') > -1:
+                    err = msg
+                    query_err = QueryError(err)
+            
+                    if self._check_auth(query_err): return None
+                    
+                    return query_err
                 
                 if attempt < self.attempts:
                     msg = "%s; attempting to connect again..." % msg
@@ -1731,6 +1753,52 @@ class EODMSRAPI():
         
         self._update_conv()
         
+    def download_image(self, url, dest_fn, fsize):
+        """
+        Given a list of remote and local items, download the remote data 
+            if it is not already found locally.
+            
+        (Adapted from the eodms-api-client (https://pypi.org/project/eodms-api-client/) developed by Mike Brady)
+        
+        :param url: The download URL of the image.
+        :type  url: str
+        :param dest_fn: The local destination filename for the download.
+        :type  dest_fn: str
+        :param fsize: The total filesize of the image.
+        :type  fsize: int
+        """
+        
+        # If we have an existing local file, check the filesize against the manifest
+        if os.path.exists(dest_fn):
+            # if all-good, continue to next file
+            if os.stat(dest_fn).st_size == fsize:
+                msg = "No download necessary. " \
+                    "Local file already exists: %s" % dest_fn
+                self._log_msg(msg)
+                return None
+            # Otherwise, delete the incomplete/malformed local file and redownload
+            else:
+                msg = 'Filesize mismatch with %s. Re-downloading...' % \
+                    os.path.basename(dest_fn)
+                self._log_msg(msg, 'warning')
+                os.remove(dest_fn)
+                
+        # Use streamed download so we can wrap nicely with tqdm
+        with self._session.get(url, stream=True) as stream:
+            with open(dest_fn, 'wb') as pipe:
+                with tqdm.wrapattr(
+                    pipe,
+                    method='write',
+                    miniters=1,
+                    total=fsize,
+                    desc="%s%s" % (self._header, os.path.basename(dest_fn))
+                ) as file_out:
+                    for chunk in stream.iter_content(chunk_size=1024):
+                        file_out.write(chunk)
+                        
+        msg = '%s has been downloaded.' % dest_fn
+        self._log_msg(msg)
+        
     def download(self, items, dest, wait=10.0):
         """
         Downloads a list of order items from the EODMS RAPI.
@@ -1882,7 +1950,7 @@ class EODMSRAPI():
                         if not os.path.exists(dest):
                             os.mkdir(dest)
                         
-                        self._download_image(url, out_fn, fsize)
+                        self.download_image(url, out_fn, fsize)
                         print('')
                         
                         # Record the URL and downloaded file to a dictionary
@@ -2128,12 +2196,36 @@ class EODMSRAPI():
         :rtype:  dict
         """
         
-        orders = self.get_orders()
+        ###############################################
+        # # Used before release of EODMS 2.1.0.16
+        # orders = self.get_orders()
         
-        order = []
-        for item in order:
-            if item['orderId'] == orderId:
-                order.append(item)
+        # order = []
+        # for item in order:
+            # if item['orderId'] == orderId:
+                # order.append(item)
+        ###############################################
+                
+        query_url = "%s/order?orderId=%s" % (self.rapi_root, orderId)
+        
+        logger.debug("RAPI URL:\n\n%s\n" % query_url)
+        
+        # Send the query to the RAPI
+        res = self._submit(query_url, self.timeout_query, quiet=False)
+        
+        if res is None or isinstance(res, QueryError):
+            if isinstance(res, QueryError):
+                msg = "Could not get order with Order ID %s due to %s." % \
+                        (orderId, res._get_msgs(True))
+            else:
+                msg = "Could not get order with Order ID %s." % orderId
+            self._log_msg(msg, 'warning')
+            return None
+            
+        if 'items' in res.keys():
+            return res['items']
+        else:
+            return res
                 
         return order
                 
@@ -2305,6 +2397,124 @@ class EODMSRAPI():
                 
         return param_res.json()
         
+    def get_rapiUrl(self):
+        """ Gets the previous URL used to query the RAPI.
+        
+        return: The RAPI URL.
+        rtype: str
+        """
+        
+        return self._rapi_url
+        
+    def get_record(self, collection, recordId, output='full'):
+        """
+        Gets an image record from the RAPI.
+        
+        :param collection: The Collection ID of the record.
+        :type  collection: str
+        :param recordId: The Record ID of the image.
+        :type  recordId: str or int
+        :param output: The format of the results (either 'full', 'raw' 
+                        or 'geojson').
+        :type  output: str
+        """
+        
+        self.collection = self._get_fullCollId(collection)
+        
+        # keys = self._get_metaKeys()
+        
+        self._rapi_url = "%s/record/%s/%s" % (self.rapi_root, \
+                            self.collection, recordId)
+                            
+        self.results = self._submit(self._rapi_url)
+        
+        if output == 'geojson':
+            feat = self.geo.convert_toGeoJSON(self.results, 'list')
+            return feat
+        elif output == 'raw':
+            return self.results
+        else:
+            return self._parse_metadata(self.results)
+            
+    def search_url(self, url):
+        """
+        Submits a URL to the RAPI.
+        
+        :param url: A valid RAPI URL (with or without the path)
+        :type  url: str
+        """
+        
+        if url.find("?") > -1:
+            query_str = url.split('?')[1]
+        else:
+            query_str = url
+            
+        params = {p.split('=')[0]: urllib.parse.unquote_plus('='.join(\
+                p.split('=')[1:])) for p in query_str.split('&')}
+        print("params: %s" % params)
+        self.collection = params['collection']
+        
+        if 'maxResults' in params.keys():
+            self.max_results = int(params['maxResults'])
+        else:
+            self.max_results = 20
+        
+        if 'format' not in params:
+            params['format'] = 'json'
+        
+        resultField = params.get('resultField')
+        if resultField is None:
+            result_fields = []
+            
+            footprint_id = self._get_fieldId('Footprint', self.collection)
+            if footprint_id is not None:
+                result_fields.append(footprint_id)
+            
+            pixspace_id = self._get_fieldId('Spatial Resolution', \
+                            self.collection)
+            if pixspace_id is not None:
+                result_fields.append(pixspace_id)
+        else:
+            result_fields = resultField.split(',')
+            
+            footprint_id = self._get_fieldId('Footprint', self.collection)
+            if footprint_id is not None:
+                if footprint_id not in result_fields:
+                    result_fields.append(footprint_id)
+                    
+            pixspace_id = self._get_fieldId('Spatial Resolution', \
+                            self.collection)
+            if pixspace_id is not None:
+                if pixspace_id not in result_fields:
+                    result_fields.append(pixspace_id)
+                    
+        params['resultField'] = ','.join(result_fields)
+        
+        query_str = urlencode(params)
+        self._rapi_url = "%s/search?%s" % (self.rapi_root, query_str)
+        
+        # print("self._rapi_url: %s" % self._rapi_url)
+        
+        # Clear self.results
+        self.results = []
+        
+        msg = "Searching for %s images on RAPI" % self.collection
+        self._log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+        logger.debug("RAPI URL:\n\n%s\n" % self._rapi_url)
+        # Send the query to the RAPI
+        self._submit_search()
+        
+        self.res_mdata = None
+        
+        if isinstance(self.results, QueryError):
+            msg = self.results._get_msgs()
+            self._log_msg(msg, 'warning')
+            return {'errors': msg}
+        
+        msg = "Number of %s images returned from RAPI: %s" % \
+                (self.collection, len(self.results))
+        self._log_msg(msg)
+        
     def search(self, collection, filters=None, features=None, dates=None, 
                 resultFields=[], maxResults=None):
         """
@@ -2383,6 +2593,8 @@ class EODMSRAPI():
                         collection)
         if pixspace_id is not None:
             result_field.append(pixspace_id)
+            
+        result_field.append('ARCHIVE_IMAGE.DOWNLOAD_PRODUCT_LINK')
         
         params['resultField'] = ','.join(result_field)
         
@@ -2400,14 +2612,14 @@ class EODMSRAPI():
         params['format'] = "json"
         
         query_str = urlencode(params)
-        self._search_url = "%s/search?%s" % (self.rapi_root, query_str)
+        self._rapi_url = "%s/search?%s" % (self.rapi_root, query_str)
         
         # Clear self.results
         self.results = []
         
         msg = "Searching for %s images on RAPI" % self.collection
         self._log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-        logger.debug("RAPI URL:\n\n%s\n" % self._search_url)
+        logger.debug("RAPI URL:\n\n%s\n" % self._rapi_url)
         # Send the query to the RAPI
         self._submit_search()
         
@@ -2426,6 +2638,7 @@ class EODMSRAPI():
             Available options:
             
             - ``raw``: Returns the JSON results straight from the RAPI.
+            - ``brief``: Returns the JSON results with the 'raw' metadata but in the field convention.
             - ``full``: Returns a JSON with full metadata information.
             - ``geojson``: Returns a FeatureCollection of the results (requires geojson package).
                             
@@ -2436,12 +2649,14 @@ class EODMSRAPI():
         
         """
         
-        if self.results is None or \
-            isinstance(self.results, QueryError):
+        if self.results is None:
             msg = "No results exist. Please use search() to run a search " \
                     "on the RAPI."
             self._log_msg(msg, 'warning')
             return None
+            
+        if isinstance(self.results, QueryError):
+            return {'errors': self.results._get_msgs()}
             
         if len(self.results) == 0: return self.results
             
@@ -2455,6 +2670,15 @@ class EODMSRAPI():
             if self.res_mdata is None:
                 self.res_mdata = self._fetch_metadata()
             return self.geo.convert_toGeoJSON(self.res_mdata)
+        elif self.res_format == 'brief':
+            conv_res = []
+            for res in self.results:
+                mdata = self._parse_metadata(res)
+                conv_res.append(mdata)
+                
+            self.results = conv_res
+            
+            return self.results
         else:
             return self.results
             

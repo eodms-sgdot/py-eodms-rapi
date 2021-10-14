@@ -407,20 +407,33 @@ class EODMSGeo:
         
         return out_wkt
             
-    def convert_toGeoJSON(self, results):
+    def convert_toGeoJSON(self, results, output='FeatureCollection'):
         """
         Converts a get of RAPI results to GeoJSON geometries.
         
         :param results: A list of results from the RAPI.
         :type  results: list
+        :param output: The output of the results (either 'FeatureCollection' 
+                or 'list' for a list of features in geojson)
+        :type  output: str
         
         :return: A dictionary of a GeoJSON FeatureCollection.
         :rtype: dict
         """
         
-        features = [{"type": "Feature", "geometry": \
-                    rec.get(self.eodmsrapi._get_conv('geometry')), \
-                    "properties": rec} for rec in results]
+        if isinstance(results, dict):
+            results = [results]
+            
+        features = []
+        for rec in results:
+            geom = rec.get(self.eodmsrapi._get_conv('geometry'))
+            props = self.eodmsrapi._parse_metadata(rec)
+            
+            feat = {"type": "Feature", "geometry": geom, "properties": props}
+            
+            features.append(feat)
+        
+        if output == 'list': return features
         
         feature_collection = {"type": "FeatureCollection", 
                             "features": features}
