@@ -35,13 +35,13 @@ from geomet import wkt
 import decimal
 
 try:
-    import ogr
-    import osr
+    import osgeo.ogr as osr
+    import osgeo.osr as ogr
     GDAL_INSTALLED = True
 except ImportError:
     try:
-        import osgeo.ogr as ogr
-        import osgeo.osr as osr
+        import ogr
+        import osr
         GDAL_INSTALLED = True
     except ImportError:
         GDAL_INSTALLED = False
