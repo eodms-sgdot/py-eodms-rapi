@@ -35,8 +35,8 @@ from geomet import wkt
 import decimal
 
 try:
-    import osgeo.ogr as osr
-    import osgeo.osr as ogr
+    import osgeo.ogr as ogr
+    import osgeo.osr as osr
     GDAL_INSTALLED = True
 except ImportError:
     try:
@@ -45,6 +45,13 @@ except ImportError:
         GDAL_INSTALLED = True
     except ImportError:
         GDAL_INSTALLED = False
+        
+# try:
+    # import ogr
+    # import osr
+    # GDAL_INSTALLED = True
+# except ImportError:
+    # GDAL_INSTALLED = False
     
 # try:
     # import geojson
@@ -72,6 +79,21 @@ class EODMSGeo:
         self.wkt_types = ['point', 'linestring', 'polygon', \
                         'multipoint', 'multilinestring', 'multipolygon']
         self.eodmsrapi = eodmsrapi
+    
+    def _check_ogr(self):
+        """
+        There is another ogr Python package. This will check if it was
+            imported instead of the proper ogr.
+        """
+        
+        if ogr.__doc__ is not None and \
+            ogr.__doc__.find("Module providing one api for multiple git " \
+            "services") > -1:
+            msg = "Another package named 'ogr' is installed."
+            self.eodmsrapi._log_msg(msg, 'warning')
+            return False
+        
+        return True
     
     def _convert_list(self, in_feat, out='wkt'):
         """
@@ -337,6 +359,11 @@ class EODMSGeo:
         pnt4 = pnt_array[3]
         
         if GDAL_INSTALLED:
+            if not self._check_ogr(): 
+                msg = "Cannot convert geometry."
+                self.eodmsrapi._log_msg(msg, 'warning')
+                return None
+            
             # Create ring
             ring = ogr.Geometry(ogr.wkbLinearRing)
             ring.AddPoint(pnt1[0], pnt1[1])
@@ -455,6 +482,13 @@ class EODMSGeo:
         
         out_feats = []
         if GDAL_INSTALLED:
+            # There is another ogr Python package that might have been imported
+            #   Check if its the wrong ogr
+            if not self._check_ogr(): 
+                msg = "Cannot import feature using OGR."
+                self.eodmsrapi._log_msg(msg, 'warning')
+                return None
+        
             # Determine the OGR driver of the input AOI
             if in_src.find('.gml') > -1:
                 ogr_driver = 'GML'

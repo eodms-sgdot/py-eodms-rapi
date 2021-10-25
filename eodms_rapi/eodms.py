@@ -1228,7 +1228,8 @@ class EODMSRAPI():
                     for mdata in v:
                         mdata_field = mdata['label']
                         mdata_field = self._get_conv(mdata_field)
-                        metadata[mdata_field] = mdata['value']
+                        if mdata_field not in exclude:
+                            metadata[mdata_field] = mdata['value']
                 else:
                     metadata[self._get_conv(k)] = v
         
@@ -2451,7 +2452,6 @@ class EODMSRAPI():
             
         params = {p.split('=')[0]: urllib.parse.unquote_plus('='.join(\
                 p.split('=')[1:])) for p in query_str.split('&')}
-        print("params: %s" % params)
         self.collection = params['collection']
         
         if 'maxResults' in params.keys():
