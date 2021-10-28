@@ -465,7 +465,39 @@ class EODMSGeo:
         feature_collection = {"type": "FeatureCollection", 
                             "features": features}
         
-        return feature_collection        
+        return feature_collection
+        
+    def process_polygon(self, geom, t_crs):
+        
+        # Convert the geometry to WGS84
+        s_crs = geom.GetSpatialReference()
+        
+        # Get the EPSG codes from the spatial references
+        epsg_sCrs = s_crs.GetAttrValue("AUTHORITY", 1)
+        epsg_tCrs = t_crs.GetAttrValue("AUTHORITY", 1)
+        
+        if not str(epsg_sCrs) == '4326':
+            if epsg_tCrs is None:
+                print("\nCannot reproject AOI.")
+                return None
+            
+            if not s_crs.IsSame(t_crs) and not epsg_sCrs == epsg_tCrs:
+                # Create the CoordinateTransformation
+                print("\nReprojecting input AOI...")
+                coordTrans = osr.CoordinateTransformation(s_crs, t_crs)
+                geom.Transform(coordTrans)
+                
+                # Reverse x and y of transformed geometry
+                ring = geom.GetGeometryRef(0)
+                for i in range(ring.GetPointCount()):
+                    ring.SetPoint(i, ring.GetY(i), ring.GetX(i))
+        
+        # Convert multipolygon to polygon (if applicable)
+        if geom.GetGeometryType() == 6:
+            geom = geom.UnionCascaded()
+        
+        # Convert to WKT
+        return geom.ExportToWkt()
         
     def get_features(self, in_src):
         """
@@ -518,35 +550,11 @@ class EODMSGeo:
                 # Create the geometry
                 geom = feat.GetGeometryRef()
                 
-                # Convert the geometry to WGS84
-                s_crs = geom.GetSpatialReference()
-                
-                # Get the EPSG codes from the spatial references
-                epsg_sCrs = s_crs.GetAttrValue("AUTHORITY", 1)
-                epsg_tCrs = t_crs.GetAttrValue("AUTHORITY", 1)
-                
-                if not str(epsg_sCrs) == '4326':
-                    if epsg_tCrs is None:
-                        print("\nCannot reproject AOI.")
-                        return None
-                    
-                    if not s_crs.IsSame(t_crs) and not epsg_sCrs == epsg_tCrs:
-                        # Create the CoordinateTransformation
-                        print("\nReprojecting input AOI...")
-                        coordTrans = osr.CoordinateTransformation(s_crs, t_crs)
-                        geom.Transform(coordTrans)
-                        
-                        # Reverse x and y of transformed geometry
-                        ring = geom.GetGeometryRef(0)
-                        for i in range(ring.GetPointCount()):
-                            ring.SetPoint(i, ring.GetY(i), ring.GetX(i))
-                
-                # Convert multipolygon to polygon (if applicable)
-                if geom.GetGeometryType() == 6:
-                    geom = geom.UnionCascaded()
-                
-                # Convert to WKT
-                out_feats.append(geom.ExportToWkt())
+                if geom.GetGeometryName() == 'MULTIPOLYGON':
+                    for geom_part in geom:
+                        out_feats.append(self.process_polygon(geom_part, t_crs))
+                else:
+                    out_feats.append(self.process_polygon(geom, t_crs))
                 
         else:
             

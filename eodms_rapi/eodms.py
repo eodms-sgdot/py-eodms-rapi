@@ -2426,7 +2426,8 @@ class EODMSRAPI():
         
         self._rapi_url = "%s/record/%s/%s" % (self.rapi_root, \
                             self.collection, recordId)
-                            
+        
+        # print("self._rapi_url: %s" % self._rapi_url)
         self.results = self._submit(self._rapi_url)
         
         if output == 'geojson':
@@ -2452,6 +2453,7 @@ class EODMSRAPI():
             
         params = {p.split('=')[0]: urllib.parse.unquote_plus('='.join(\
                 p.split('=')[1:])) for p in query_str.split('&')}
+        # print("params: %s" % params)
         self.collection = params['collection']
         
         if 'maxResults' in params.keys():
@@ -2625,6 +2627,11 @@ class EODMSRAPI():
         
         self.res_mdata = None
         
+        if isinstance(self.results, QueryError):
+            msgs = self.results._get_msgs()
+            self._log_msg(msgs, 'warning')
+            return {'errors': msgs}
+        
         msg = "Number of %s images returned from RAPI: %s" % \
                 (self.collection, len(self.results))
         self._log_msg(msg)
@@ -2656,7 +2663,7 @@ class EODMSRAPI():
             return None
             
         if isinstance(self.results, QueryError):
-            return {'errors': self.results._get_msgs()}
+            return [{'errors': self.results._get_msgs()}]
             
         if len(self.results) == 0: return self.results
             
