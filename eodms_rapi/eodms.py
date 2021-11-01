@@ -685,8 +685,9 @@ class EODMSRAPI():
         log_msg = log_msg.replace('\n', '\\n')
         log_msg = log_msg.replace('\t', '\\t')
         log_msg = log_msg.replace("'", "\\'")
-        eval_str = "logger.%s('%s')" % (msg_type, log_msg)
-        eval("logger.%s('%s')" % (msg_type, log_msg))
+        # log_msg = log_msg.replace("\\", "\\\\")
+        # eval_str = "logger.%s('%s')" % (msg_type, log_msg)
+        eval("logger.%s(r'%s')" % (msg_type, log_msg))
         
         # If stdout is disabled, don't print message to terminal
         if not self.stdout_enabled: return None

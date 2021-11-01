@@ -472,6 +472,10 @@ class EODMSGeo:
         # Convert the geometry to WGS84
         s_crs = geom.GetSpatialReference()
         
+        if s_crs is None:
+            s_crs = osr.SpatialReference()
+            s_crs.ImportFromEPSG(4326)
+        
         # Get the EPSG codes from the spatial references
         epsg_sCrs = s_crs.GetAttrValue("AUTHORITY", 1)
         epsg_tCrs = t_crs.GetAttrValue("AUTHORITY", 1)
@@ -552,6 +556,7 @@ class EODMSGeo:
                 
                 if geom.GetGeometryName() == 'MULTIPOLYGON':
                     for geom_part in geom:
+                        # print("geom_part: %s" % geom_part)
                         out_feats.append(self.process_polygon(geom_part, t_crs))
                 else:
                     out_feats.append(self.process_polygon(geom, t_crs))
