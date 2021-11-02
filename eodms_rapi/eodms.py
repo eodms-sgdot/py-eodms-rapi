@@ -2597,7 +2597,11 @@ class EODMSRAPI():
         if pixspace_id is not None:
             result_field.append(pixspace_id)
             
-        result_field.append('ARCHIVE_IMAGE.DOWNLOAD_PRODUCT_LINK')
+        # Get the pixel spacing field and add it to resultField
+        dl_id = self._get_fieldId('Download Link', \
+                        collection)
+        if dl_id is not None:
+            result_field.append(dl_id)
         
         params['resultField'] = ','.join(result_field)
         
