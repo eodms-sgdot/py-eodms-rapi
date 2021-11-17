@@ -78,7 +78,7 @@ class QueryError:
         Initializer for QueryError object which stores an error message.
         
         :param msgs: The error message to print.
-        :type msgs: str
+        :type  msgs: str
         """
         
         self.msgs = msgs
@@ -1584,6 +1584,9 @@ class EODMSRAPI():
                 else:
                     err = msg
                 attempt += 1
+            except requests.exceptions.SSLError as err:
+                verify = False
+                attempt += 1
             except (requests.exceptions.Timeout, 
                     requests.exceptions.ReadTimeout) as errt:
                 msg = "Timeout Error: %s" % errt
@@ -2439,12 +2442,18 @@ class EODMSRAPI():
         else:
             return self._parse_metadata(self.results)
             
-    def search_url(self, url):
+    def search_url(self, url, **kwargs):
         """
         Submits a URL to the RAPI.
         
         :param url: A valid RAPI URL (with or without the path)
         :type  url: str
+        :param kwargs: Options include:<br>
+                filters (dict): A dictionary of filters and values for the RAPI.<br>
+                features (list): A list of geometries for the query.<br>
+                dates (list): A list of date range dictionaries containing keys 
+                        'start' and 'end'.<br>
+        :type  kwargs: dict
         """
         
         if url.find("?") > -1:
@@ -2456,6 +2465,32 @@ class EODMSRAPI():
                 p.split('=')[1:])) for p in query_str.split('&')}
         # print("params: %s" % params)
         self.collection = params['collection']
+        
+        # print("params: %s" % params)
+        # answer = input("Press enter...")
+        
+        filters = kwargs.get('filters')
+        features = kwargs.get('features')
+        dates = kwargs.get('dates')
+        
+        # print("filters: %s" % filters)
+        # print("features: %s" % features)
+        # print("dates: %s" % dates)
+        
+        # print("features: %s" % features)
+        
+        if filters is not None or features is not None or dates is not None:
+            query = params.get('query')
+            if query is None:
+                params['query'] = self._parse_query(filters, features, \
+                                    dates)
+            else:
+                params['query'] = '%s AND %s' % (query, \
+                                    self._parse_query(filters, features, \
+                                    dates))
+        
+        # print("params: %s" % params)
+        # answre = input("Press enter...")
         
         if 'maxResults' in params.keys():
             self.max_results = int(params['maxResults'])
