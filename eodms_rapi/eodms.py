@@ -522,24 +522,31 @@ class EODMSRAPI():
         field_id = None
         if field_type == 'search':
             fields = self.get_availableFields(name_type='all')[field_type]
+
+            # print("\nname: %s" % name)
+            # for k, v in fields.items():
+            #     print("%s:" % k)
+            #     for k1, v1 in v.items():
+            #         print("  %s: %s" % (k1, v1))
             
-            if not name in fields.keys():
-                # Check field in field_map
-                coll_fields = self.field_map[self.collection]
-                ui_fields = [f['uiField'] for f in coll_fields]
-                
-                for f in coll_fields:
-                    if f['uiField'].find(name) > -1 or \
-                        f['uiField'].upper().replace(' ', '_')\
-                            .find(name) > -1 or \
-                        f['fieldId'].find(name) > -1:
-                        field_id = f['fieldId']
-                        break
-            else:
-                # Check in available fields
-                for k, v in fields.items():
-                    if name == k:
-                        field_id = v['id']
+            # if not name in fields.keys():
+            #     # Check field in field_map
+            #     # print("self.field_map: %s" % self.field_map.keys())
+            #     coll_fields = self.field_map[self.collection]
+            #     ui_fields = [f['uiField'] for f in coll_fields]
+            #
+            #     for f in coll_fields:
+            #         if f['uiField'].find(name) > -1 or \
+            #             f['uiField'].upper().replace(' ', '_')\
+            #                 .find(name) > -1 or \
+            #             f['fieldId'].find(name) > -1:
+            #             field_id = f['fieldId']
+            #             break
+            # else:
+            # Check in available fields
+            for k, v in fields.items():
+                if name == k:
+                    field_id = v['id']
             
             # If field_id is still None, check to make sure the
             #   name entry is an ID
@@ -554,7 +561,7 @@ class EODMSRAPI():
             
             # Check if results fields
             for k, v in fields.items():
-                if name == k:
+                if k.find(name) > -1:
                     field_id = v['id']
             
             # If field_id is still None, check to make sure the
@@ -792,7 +799,29 @@ class EODMSRAPI():
                  {'collectionId': 'IRS', 
                     'fieldId': 'IRS.SBEAM', 
                     'uiField': 'Sensor Mode', 
-                    'rapiField': 'Sensor Mode'}], 
+                    'rapiField': 'Sensor Mode'}],
+            'NAPL':
+                [{'collectionId': 'NAPL',
+                  'fieldId': 'PHOTO.SBEAM',
+                  'uiField': 'Colour',
+                  'rapiField': 'Sensor Mode'},
+                 {'collectionId': 'NAPL',
+                  'fieldId': 'FLIGHT_SEGMENT.SCALE',
+                  'uiField': 'Scale',
+                  'rapiField': 'Scale'},
+                 {'collectionId': 'NAPL',
+                  'fieldId': 'ROLL.ROLL_NUMBER',
+                  'uiField': 'Roll',
+                  'rapiField': 'Roll Number'},
+                 {'collectionId': 'NAPL',
+                  'fieldId': 'PHOTO.PHOTO_NUMBER',
+                  'uiField': 'Photo Number',
+                  'rapiField': 'Photo Number'},
+                 {'collectionId': 'NAPL',
+                  'fieldId': 'PREVIEW_AVAILABLE',
+                  'uiField': 'Preview Available',
+                  'rapiField': 'Preview Available'}
+                 ],
             'PlanetScope': 
                 [{'collectionId': 'PlanetScope', 
                     'fieldId': 'SATOPT.CLOUD_PERCENT', 
@@ -1082,7 +1111,24 @@ class EODMSRAPI():
                  {'collectionId': 'RCMScienceData', 
                     'fieldId': 'RCM.DOWNLINK_SEGMENT_ID', 
                     'uiField': 'Downlink Segment ID', 
-                    'rapiField': 'Downlink Segment ID'}], 
+                    'rapiField': 'Downlink Segment ID'}],
+            'SGBAirPhotos': [{'collectionId': 'SGBAirPhotos',
+                              'fieldId': 'FLIGHT_SEGMENT.SCALE',
+                              'uiField': 'Scale',
+                              'rapiField': 'Scale'},
+                             {'collectionId': 'SGBAirPhotos',
+                              'fieldId': 'ROLL.ROLL_NUMBER',
+                              'uiField': 'Roll',
+                              'rapiField': 'Roll Number'},
+                             {'collectionId': 'SGBAirPhotos',
+                              'fieldId': 'PHOTO.PHOTO_NUMBER',
+                              'uiField': 'Photo Number',
+                              'rapiField': 'Photo Number'},
+                             {'collectionId': 'SGBAirPhotos',
+                              'fieldId': 'Area',
+                              'uiField': 'Area',
+                              'rapiField': 'Area'}
+                             ],
             'SPOT': [{'collectionId': 'SPOT', 
                     'fieldId': 'SPOT.CLOUD_PERCENT', 
                     'uiField': 'Maximum Cloud Cover (Not all vendors supply cloud cover data)', 
@@ -1383,6 +1429,7 @@ class EODMSRAPI():
         
         # Build the query containing the filters
         if filters is not None:
+            # print("filters: %s" % filters)
             for field, values in filters.items():
                     
                 field_id = self._get_fieldId(field)
@@ -2571,7 +2618,9 @@ class EODMSRAPI():
                     {"Beam Mnemonic": {'=': []}}
         
         :type  filters: dict
-        :param features: A list of tuples containing the operator and filenames or coordinates of features to use in the search. The features can be:
+        :param features: A list of tuples containing the operator and
+            filenames or coordinates of features to use in the search.
+            The features can be:
                 
                 - a filename (ESRI Shapefile, KML, GML or GeoJSON)
                 - a WKT format string
@@ -2579,8 +2628,10 @@ class EODMSRAPI():
                 - a list of coordinates (ex: ``[(x1, y1), (x2, y2), ...]``)
                 
         :type  features: list
-        :param dates: A list of date range dictionaries with keys ``start`` and ``end``.
-                The values of the ``start`` and ``end`` can either be a string in format
+        :param dates: A list of date range dictionaries with keys ``start``
+                and ``end``.
+                The values of the ``start`` and ``end`` can either be a
+                string in format
                 ``yyyymmdd_hhmmss`` or a datetime.datetime object.
                 
                 Example:
@@ -2622,19 +2673,20 @@ class EODMSRAPI():
                 result_field.append(field_id)
         
         # Get the geometry field and add it to resultField
-        footprint_id = self._get_fieldId('Footprint', collection)
+        footprint_id = self._get_fieldId('Footprint', collection,
+                                         field_type='results')
         if footprint_id is not None:
             result_field.append(footprint_id)
                 
         # Get the pixel spacing field and add it to resultField
         pixspace_id = self._get_fieldId('Spatial Resolution', \
-                        collection)
+                        collection, field_type='results')
         if pixspace_id is not None:
             result_field.append(pixspace_id)
             
         # Get the pixel spacing field and add it to resultField
         dl_id = self._get_fieldId('Download Link', \
-                        collection)
+                        collection, field_type='results')
         if dl_id is not None:
             result_field.append(dl_id)
         

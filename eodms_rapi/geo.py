@@ -61,7 +61,8 @@ except ImportError:
 
 class EODMSGeo:
     """
-    The Geo class contains all the methods and functions used to perform geographic processes mainly using OGR.
+    The Geo class contains all the methods and functions used to perform
+        geographic processes mainly using OGR.
     """
     
     def __init__(self, eodmsrapi):
@@ -87,8 +88,8 @@ class EODMSGeo:
         """
         
         if ogr.__doc__ is not None and \
-            ogr.__doc__.find("Module providing one api for multiple git " \
-            "services") > -1:
+            ogr.__doc__.find("Module providing one api for multiple git "
+                             "services") > -1:
             msg = "Another package named 'ogr' is installed."
             self.eodmsrapi._log_msg(msg, 'warning')
             return False
@@ -130,10 +131,12 @@ class EODMSGeo:
         :type  in_feat: str
         :param show_error: Determines whether to display the error.
         :type  show_error: boolean
-        :param return_wkt: Determines whether to return the converted WKT if True.
+        :param return_wkt: Determines whether to return the converted WKT
+                            if True.
         :type  return_wkt: boolean
         
-        :return: If the input is a valid WKT, return WKT if return_wkt is True or return just True; False if not valid.
+        :return: If the input is a valid WKT, return WKT if return_wkt
+                is True or return just True; False if not valid.
         :rtype: str or boolean
         """
         
@@ -175,7 +178,8 @@ class EODMSGeo:
         
         :param feats: The input feature(s).
         :type  feats: json, str or list
-        :param in_type: Helps determine the type of input (either 'wkt', 'json' or 'list').
+        :param in_type: Helps determine the type of input (either 'wkt',
+                        'json' or 'list').
         :type  in_type: str
         :param out: Determines the type of output (either 'wkt' or 'json').
         :type  out: str
@@ -232,7 +236,8 @@ class EODMSGeo:
         
         :param in_src: The in_src can either be:
                     
-            - a filename (ESRI Shapefile, KML, GML or GeoJSON) of multiple features
+            - a filename (ESRI Shapefile, KML, GML or GeoJSON) of multiple
+                features
             - a WKT format string of a single feature
             - the 'geometry' entry from a GeoJSON Feature
             - a list of coordinates (ex: ``[(x1, y1), (x2, y2), ...]``)
@@ -320,7 +325,8 @@ class EODMSGeo:
         
     def convert_imageGeom(self, coords, output='array'):
         """
-        Converts a list of coordinates from the RAPI to a polygon geometry, array of points or as WKT.
+        Converts a list of coordinates from the RAPI to a polygon geometry,
+            array of points or as WKT.
         
         :param coords: A list of coordinates from the RAPI results.
         :type  coords: list
@@ -343,7 +349,8 @@ class EODMSGeo:
                 lst_level = level - 2
                 
                 if lst_level > -1:
-                    pnt_array = eval("coords['coordinates']" + '[0]'*(lst_level))
+                    pnt_array = eval("coords['coordinates']" +
+                                     '[0]'*(lst_level))
                 else:
                     pnt_array = coords['coordinates']
             else:
@@ -573,19 +580,19 @@ class EODMSGeo:
                     root = tree.getroot()
                 
                 if in_src.find('.gml') > -1:
-                    for feat in root.findall('.//{http://www.opengis.net/' \
+                    for feat in root.findall('.//{http://www.opengis.net/' 
                         'gml}featureMember'):
                         
                         # Get geometry type
                         geom_type = 'Polygon'
                         for elem in feat.findall('*'):
-                            tag = elem.tag.replace('{http://ogr.maptools.' \
+                            tag = elem.tag.replace('{http://ogr.maptools.' 
                                 'org/}', '')
                             if tag in geom_choices:
                                 geom_type = tag
                         
                         coord_lst = []
-                        for coords in root.findall('.//{http://www.opengis' \
+                        for coords in root.findall('.//{http://www.opengis' 
                             '.net/gml}coordinates'):
                             coord_lst.append(coords.text)
                             
@@ -598,13 +605,13 @@ class EODMSGeo:
                         else:
                             out_feats.append(wkt_feat)
                 else:
-                    for plcmark in root.findall('.//{http://www.opengis.net/' \
+                    for plcmark in root.findall('.//{http://www.opengis.net/' 
                         'kml/2.2}Placemark'):
                         
                         # Get geometry type
                         geom_type = 'Polygon'
                         for elem in plcmark.findall('*'):
-                            tag = elem.tag.replace('{http://www.opengis.net/' \
+                            tag = elem.tag.replace('{http://www.opengis.net/' 
                                     'kml/2.2}', '')
                             if tag in geom_choices:
                                 geom_type = tag
