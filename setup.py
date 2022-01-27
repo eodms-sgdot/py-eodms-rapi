@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='py-eodms-rapi',
-    version='1.2.9', 
+    version='1.2.10', 
     author='Kevin Ballantyne (Natural Resources Canada)',
     author_email='kevin.ballantyne@nrcan-rncan.gc.ca',
     packages=find_packages(),
@@ -19,8 +19,8 @@ setup(
         "geomet",
     ],
     project_urls={
-        "Source": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi", 
-        "Bug Tracker": "https://github.com/nrcan-eodms-sgdot-rncan/py-eodms-rapi/issues",
+        "Source": "https://github.com/eodms-sgdot/py-eodms-rapi", 
+        "Bug Tracker": "https://github.com/eodms-sgdot/py-eodms-rapi/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",

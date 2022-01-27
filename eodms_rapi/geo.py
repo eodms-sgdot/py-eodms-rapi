@@ -216,6 +216,8 @@ class EODMSGeo:
                     out_geom.append(geom)
         else:
             out_geom = json_geom
+
+        # print("out_geom: %s" % out_geom)
         
         if out == 'wkt':
             out_feats = []
@@ -273,7 +275,9 @@ class EODMSGeo:
         
         if os.path.isdir(in_src):
             return None
-        
+
+        print("in_src: %s" % in_src)
+
         if in_src.find('(') > -1 and in_src.find(')') > -1:
             if self._is_wkt(in_src, True):
                 # Can only be a single WKT object

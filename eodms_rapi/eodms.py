@@ -57,15 +57,15 @@ logger = logging.getLogger('EODMSRAPI')
 # Set handler for output to terminal
 logger.setLevel(logging.DEBUG)
 ch = logging.NullHandler()
-formatter = logging.Formatter('| %(name)s | %(asctime)s | %(levelname)s: ' \
+formatter = logging.Formatter('| %(name)s | %(asctime)s | %(levelname)s: ' 
                                 '%(message)s', '%Y-%m-%d %H:%M:%S')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-RECORD_KEYS = ["recordId", "overviewUrl", "collectionId", "metadata2", \
-            "rapiOrderUrl", "geometry", "title", "orderExecuteUrl", \
-            "thumbnailUrl", "metadataUrl", "isGeorectified", \
-            "collectionTitle", "isOrderable", "thisRecordUrl", \
+RECORD_KEYS = ["recordId", "overviewUrl", "collectionId", "metadata2",
+            "rapiOrderUrl", "geometry", "title", "orderExecuteUrl",
+            "thumbnailUrl", "metadataUrl", "isGeorectified",
+            "collectionTitle", "isOrderable", "thisRecordUrl",
             "metadata"]
 
 class QueryError:
@@ -156,8 +156,8 @@ class EODMSRAPI():
         
         self._header = '| EODMSRAPI | '
         
-        self.failed_status = ['CANCELLED', 'FAILED', 'EXPIRED', \
-                            'DELIVERED', 'MEDIA_ORDER_SUBMITTED', \
+        self.failed_status = ['CANCELLED', 'FAILED', 'EXPIRED',
+                            'DELIVERED', 'MEDIA_ORDER_SUBMITTED',
                             'AWAITING_PAYMENT']
         
         return None
@@ -194,7 +194,7 @@ class EODMSRAPI():
         
         err_msg = in_err._get_msgs(True)
         if err_msg.find('401 - Unauthorized') > -1 or \
-            (err_msg.find('HTTP Error: 401 Client Error') > -1 and \
+            (err_msg.find('HTTP Error: 401 Client Error') > -1 and
             err_msg.find('Unauthorized') > -1):
             # Inform the user if the error was caused by an authentication 
             #   issue.
@@ -300,7 +300,7 @@ class EODMSRAPI():
             if field.find(' ') > -1:
                 words = field.split(' ')
             else:
-                words = re.findall('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=' \
+                words = re.findall('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=' 
                         '[A-Z])(?=[A-Z][a-z])|$)', field)
                 words = [w[0].upper() + w[1:] for w in words]
             
@@ -654,10 +654,19 @@ class EODMSRAPI():
         """
         
         if d_type == 'String':
-            or_query = '%s' % ' OR '.join(["%s%s'%s'" % \
+            or_query = '%s' % ' OR '.join(["%s%s'%s'" %
                         (field_id, op, v) for v in values])
+        elif d_type == 'DateTimeRange':
+            date_vals = []
+            for val in values:
+                date = dateutil.parser.parse(val)
+                iso_date = date.isoformat()
+                date_vals.append(iso_date)
+            or_query = '%s' % ' OR '.join(["%s%s'%s'" %
+                                           (field_id, op, v)
+                                           for v in date_vals])
         else:
-            or_query = '%s' % ' OR '.join(["%s%s%s" % \
+            or_query = '%s' % ' OR '.join(["%s%s%s" %
                         (field_id, op, v) for v in values])
                         
         return or_query
@@ -704,7 +713,7 @@ class EODMSRAPI():
         if msg_type == 'info':
             msg = "%s%s%s" % (out_indent, self._header, out_msg)
         else:
-            msg = "%s%s %s: %s" % (out_indent, self._header, \
+            msg = "%s%s %s: %s" % (out_indent, self._header,
                 msg_type.upper(), out_msg)
                 
         print(msg)
@@ -1259,8 +1268,7 @@ class EODMSRAPI():
                 image_res['geometry']
         
         # Exclude what's already been added and other metadata fields
-        exclude = [self._get_conv('recordId'), \
-                    self._get_conv('collectionId'), \
+        exclude = [self._get_conv('recordId'), self._get_conv('collectionId'),
                     self._get_conv('geometry')]
         
         # Remove 'metadata' from metadata
@@ -1313,8 +1321,8 @@ class EODMSRAPI():
         
         if self.res_format == 'full':
             wkt_field = self._get_conv('WKT Geometry')
-            metadata[wkt_field] = self.geo.convert_imageGeom(\
-                                image_res['geometry'], 'wkt')
+            metadata[wkt_field] = self.geo.convert_imageGeom(
+                image_res['geometry'], 'wkt')
             
         return metadata
     
@@ -1334,7 +1342,7 @@ class EODMSRAPI():
         """
         
         return '(%s>=%s AND %s<=%s)' % (field, start, field, end)
-        
+
     def _parse_query(self, filters=None, feats=None, dates=None):
         """
         Parses a search query for the RAPI.
@@ -1372,28 +1380,28 @@ class EODMSRAPI():
             
             date_queries = []
             for rng in self.dates:
+                start = None
+                end = None
                 if isinstance(rng, str):
                     time_words = ['hour', 'day', 'week', 'month', 'year']
                     
                     if any(word in rng for word in time_words):
-                        start = dateparser.parse(rng).strftime(\
-                                "%Y%m%d_%H%M%S")
-                        end = datetime.datetime.now().strftime(\
-                                "%Y%m%d_%H%M%S")
+                        start = dateparser.parse(rng).strftime("%Y%m%d_%H%M%S")
+                        end = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                 else:
                     if 'start' not in rng.keys():
                         break
                     
-                    start = self._convert_date(rng.get('start'), \
-                                    "%Y%m%d_%H%M%S", \
+                    start = self._convert_date(rng.get('start'),
+                                    "%Y%m%d_%H%M%S",
                                     out_form="%Y-%m-%dT%H:%M:%SZ")
-                    end = self._convert_date(rng.get('end'), "%Y%m%d_%H%M%S", \
+                    end = self._convert_date(rng.get('end'), "%Y%m%d_%H%M%S",
                                     out_form="%Y-%m-%dT%H:%M:%SZ")
                                     
-                    if start is None or end is None:
-                        continue
+                if start is None or end is None:
+                    continue
                 
-                date_queries.append("%s>='%s' AND %s<='%s'" % \
+                date_queries.append("%s>='%s' AND %s<='%s'" %
                     (field_id, start, field_id, end))
             
             if len(date_queries) > 0:
@@ -1409,8 +1417,12 @@ class EODMSRAPI():
             for idx, f in enumerate(feats):
                 op = f[0].upper()
                 src = f[1]
+
+                # print("op: %s" % op)
                 
                 self.geoms = self.geo.add_geom(src)
+
+                # print("self.geoms: %s" % self.geoms)
                 
                 if self.geoms is None or isinstance(self.geoms, SyntaxError):
                     msg = "Geometry feature #%s could not be determined. " \
@@ -1423,7 +1435,10 @@ class EODMSRAPI():
                         if not isinstance(self.geoms, list) else self.geoms
                     
                     for g in self.geoms:
-                        geom_lst.append('%s %s %s' % (field_id, op, g))
+                        if op == '=':
+                            geom_lst.append("%s%s'%s'" % (field_id, op, g))
+                        else:
+                            geom_lst.append('%s %s %s' % (field_id, op, g))
             
             if len(geom_lst) > 0:
                 query_lst.append("(%s)" % ' OR '.join(geom_lst))
@@ -1441,12 +1456,16 @@ class EODMSRAPI():
                     continue
                     
                 d_type = self._get_fieldType(self.collection, field_id)
+
+                # print("d_type: %s" % d_type)
                 
                 op = values[0]
                 val = values[1]
                 
                 if not any(c in op for c in '=><'):
                     op = ' %s ' % op
+
+                # print("field: %s" % field)
                 
                 if field == 'Incidence Angle' or field == 'Scale' or \
                     field == 'Spacial Resolution' or field == 'Absolute Orbit':
@@ -1465,22 +1484,49 @@ class EODMSRAPI():
                             val_query = self._parse_range(field_id, start, end)
                         else:
                             val_query = "%s%s%s" % (field_id, op, val)
+                elif field == 'Footprint':
+                    # print("field: %s" % field)
+                    # print("values: %s" % str(values))
+
+                    pnts = []
+                    vals = val.split(' ')
+                    for idx in range(0, len(vals), 2):
+                        if vals[idx].strip() == '': continue
+
+                        # print("v: %s" % vals[idx])
+
+                        pnts.append((float(vals[idx]), float(vals[idx + 1])))
+
+                    # print("pnts: %s" % pnts)
+
+                    self.geoms = self.geo.add_geom(pnts)
+
+                    # print("self.geoms: %s" % self.geoms)
+
+                    val_query = "%s%s%s" % (field_id, op, self.geoms)
+
                 else:
                     if isinstance(val, list) or isinstance(val, tuple):
                         val_query = self._build_or(field_id, op, val, d_type)
                     else:
                         if d_type == 'String':
                             val_query = "%s%s'%s'" % (field_id, op, val)
+                        elif d_type == 'DateTimeRange':
+                            date = dateutil.parser.parse(val)
+                            iso_date = date.isoformat()
+                            val_query = "%s%s'%s'" % (field_id, op, iso_date)
                         else:
                             val_query = "%s%s%s" % (field_id, op, val)
                 
                 query_lst.append(val_query)
         
         if len(query_lst) > 1:
-            query_lst = ['(%s)' % q if q.find(' OR ') > -1 else q \
+            query_lst = ['(%s)' % q if q.find(' OR ') > -1 else q
                         for q in query_lst]
             
         full_query = ' AND '.join(query_lst)
+
+        # print("full_query: %s" % full_query)
         
         return full_query
             
@@ -1512,6 +1558,7 @@ class EODMSRAPI():
         self._log_msg(msg)
         
         logger.debug("RAPI Query URL: %s" % self._rapi_url)
+        # print("RAPI Query URL: %s" % self._rapi_url)
         r = self._submit(self._rapi_url, as_json=False)
         
         if r is None: return None
@@ -1542,7 +1589,7 @@ class EODMSRAPI():
             first_result = len(self.results) + 1
             if self._rapi_url.find('&firstResult') > -1:
                 old_firstResult = int(re.search(
-                                        r'&firstResult=([\d*]+)', \
+                                        r'&firstResult=([\d*]+)',
                                         self._rapi_url
                                     ).group(1))
                 self._rapi_url = self._rapi_url.replace(
@@ -1551,6 +1598,7 @@ class EODMSRAPI():
                                    )
             else:
                 self._rapi_url += '&firstResult=%s' % first_result
+
             return self._submit_search()
             
     def _submit(self, query_url, timeout=None, 
@@ -1950,16 +1998,16 @@ class EODMSRAPI():
                             msg += "\n    Order Item Id: %s\n" \
                                     "    Record Id: %s" \
                                     "    Collection: %s\n" % \
-                                    (cur_item['itemId'], \
-                                    cur_item['recordId'], \
+                                    (cur_item['itemId'],
+                                    cur_item['recordId'],
                                     cur_item['collectionId'])
                         else:
                             msg += "\n    Order Item Id: %s\n" \
                                     "    Record Id: %s\n" \
                                     "    Collection: %s\n" \
                                     "    Reason for Failure: %s" % \
-                                    (cur_item['itemId'], cur_item['recordId'], \
-                                    cur_item['collectionId'], \
+                                    (cur_item['itemId'], cur_item['recordId'],
+                                    cur_item['collectionId'],
                                     cur_item['statusMessage'])
                     else:
                         # If the order was unsuccessful with another status, 
@@ -1969,8 +2017,8 @@ class EODMSRAPI():
                         msg += "\n    Order Item Id: %s\n" \
                                 "    Record Id: %s\n" \
                                 "    Collection: %s\n" % \
-                                (cur_item['itemId'], \
-                                cur_item['recordId'], \
+                                (cur_item['itemId'],
+                                cur_item['recordId'],
                                 cur_item['collectionId'])
                     
                     self._log_msg(msg)
@@ -2000,7 +2048,7 @@ class EODMSRAPI():
                         
                         # Download the image
                         msg = "Downloading image with " \
-                                "Record Id %s (%s)." % (record_id, \
+                                "Record Id %s (%s)." % (record_id,
                                 os.path.basename(url))
                         self._log_msg(msg)
                         
@@ -2081,15 +2129,15 @@ class EODMSRAPI():
         else:
             srch_fields = {}
             for r in coll_res['searchFields']:
-                srch_fields[r['title']] = {'id': r['id'], \
-                                    'datatype': r['datatype'], \
+                srch_fields[r['title']] = {'id': r['id'],
+                                    'datatype': r['datatype'],
                                     'choices': r.get('choices')}
         
             fields['search'] = srch_fields
         
             res_fields = {}
             for r in coll_res['resultFields']:
-                    res_fields[r['title']] = {'id': r['id'], \
+                    res_fields[r['title']] = {'id': r['id'],
                                     'datatype': r['datatype']}
             
             fields['results'] = res_fields
@@ -2156,10 +2204,10 @@ class EODMSRAPI():
         if self.rapi_collections and not redo:
             if as_list:
                 if opt == 'title':
-                    collections = [i['title'] for i in \
+                    collections = [i['title'] for i in
                                 self.rapi_collections.values()]
                 elif opt == 'both':
-                    collections = [{'id': k, 'title': v['title']} \
+                    collections = [{'id': k, 'title': v['title']}
                             for k, v in self.rapi_collections.items()]
                 else:
                     collections = list(self.rapi_collections.keys())
@@ -2211,10 +2259,10 @@ class EODMSRAPI():
         # If as_list is True, convert dictionary to list of collection IDs
         if as_list:
             if opt == 'title':
-                collections = [i['title'] for i in \
+                collections = [i['title'] for i in
                             self.rapi_collections.values()]
             elif opt == 'both':
-                collections = [{'id': k, 'title': v['title']} \
+                collections = [{'id': k, 'title': v['title']}
                             for k, v in self.rapi_collections.items()]
             else:
                 collections = list(self.rapi_collections.keys())
@@ -2385,14 +2433,14 @@ class EODMSRAPI():
                 continue
         
             # Get the most recent order item with the given recordId
-            order_item = max([r for r in rec_orders \
-                        if r['recordId'] == rec_id], \
+            order_item = max([r for r in rec_orders
+                        if r['recordId'] == rec_id],
                         key=lambda x:x['dateSubmitted'])
                         
             found_orders.append(order_item)
         
         msg = "Found %s order items for the following records: %s" % \
-                (len(found_orders), ', '.join([r['recordId'] \
+                (len(found_orders), ', '.join([r['recordId']
                 for r in found_orders]))
         self._log_msg(msg)
                     
@@ -2426,7 +2474,7 @@ class EODMSRAPI():
         self._log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         
         # Set the RAPI URL
-        query_url = "%s/order/params/%s/%s" % (self.rapi_root, \
+        query_url = "%s/order/params/%s/%s" % (self.rapi_root,
                     collection, recordId)
         
         # Send the JSON request to the RAPI
@@ -2484,7 +2532,7 @@ class EODMSRAPI():
         
         # keys = self._get_metaKeys()
         
-        self._rapi_url = "%s/record/%s/%s" % (self.rapi_root, \
+        self._rapi_url = "%s/record/%s/%s" % (self.rapi_root,
                             self.collection, recordId)
         
         # print("self._rapi_url: %s" % self._rapi_url)
@@ -2522,7 +2570,7 @@ class EODMSRAPI():
         else:
             query_str = url
             
-        params = {p.split('=')[0]: urllib.parse.unquote_plus('='.join(\
+        params = {p.split('=')[0]: urllib.parse.unquote_plus('='.join(
                 p.split('=')[1:])) for p in query_str.split('&')}
         # print("params: %s" % params)
         self.collection = params['collection']
@@ -2543,11 +2591,11 @@ class EODMSRAPI():
         if filters is not None or features is not None or dates is not None:
             query = params.get('query')
             if query is None:
-                params['query'] = self._parse_query(filters, features, \
+                params['query'] = self._parse_query(filters, features,
                                     dates)
             else:
-                params['query'] = '%s AND %s' % (query, \
-                                    self._parse_query(filters, features, \
+                params['query'] = '%s AND %s' % (query,
+                                    self._parse_query(filters, features,
                                     dates))
         
         # print("params: %s" % params)
@@ -2569,7 +2617,7 @@ class EODMSRAPI():
             if footprint_id is not None:
                 result_fields.append(footprint_id)
             
-            pixspace_id = self._get_fieldId('Spatial Resolution', \
+            pixspace_id = self._get_fieldId('Spatial Resolution',
                             self.collection)
             if pixspace_id is not None:
                 result_fields.append(pixspace_id)
@@ -2581,7 +2629,7 @@ class EODMSRAPI():
                 if footprint_id not in result_fields:
                     result_fields.append(footprint_id)
                     
-            pixspace_id = self._get_fieldId('Spatial Resolution', \
+            pixspace_id = self._get_fieldId('Spatial Resolution',
                             self.collection)
             if pixspace_id is not None:
                 if pixspace_id not in result_fields:
@@ -2680,7 +2728,7 @@ class EODMSRAPI():
             field_id = self._get_fieldId(field, field_type='results')
             if field_id is None:
                 msg = "Field '%s' does not exist for collection '%s'. "\
-                        "Excluding it from resultField entry." % (field, \
+                        "Excluding it from resultField entry." % (field,
                         self.collection)
                 self._log_msg(msg, 'warning')
             else:
@@ -2693,13 +2741,13 @@ class EODMSRAPI():
             result_field.append(footprint_id)
                 
         # Get the pixel spacing field and add it to resultField
-        pixspace_id = self._get_fieldId('Spatial Resolution', \
+        pixspace_id = self._get_fieldId('Spatial Resolution',
                         collection, field_type='results')
         if pixspace_id is not None:
             result_field.append(pixspace_id)
             
         # Get the pixel spacing field and add it to resultField
-        dl_id = self._get_fieldId('Download Link', \
+        dl_id = self._get_fieldId('Download Link',
                         collection, field_type='results')
         if dl_id is not None:
             result_field.append(dl_id)
@@ -2870,21 +2918,21 @@ class EODMSRAPI():
         coll_key = self._get_conv('collectionId')
         recid_key = self._get_conv('recordId')
         
-        items = [{'collectionId': item[coll_key], \
+        items = [{'collectionId': item[coll_key],
                 'recordId': item[recid_key]} \
                 for item in results]
         
         items = []
         for r in results:
             # Set the Collection ID and Record ID
-            item = {'collectionId': r[coll_key], \
+            item = {'collectionId': r[coll_key],
                     'recordId': r[recid_key]}
             
             # Set the priority
             if priority is not None and not priority.lower() == 'medium':
                 item['priority'] = priority
             if 'priority' in r.keys():
-                item['priority'] == r[self._get_conv('priority')]
+                item['priority'] = r[self._get_conv('priority')]
             
             # Set parameters
             if parameters is not None:
@@ -2978,7 +3026,7 @@ class EODMSRAPI():
         :return: Returns the contents of the Delete request (always empty).
         :rtype:  byte str
         """
-        
+
         msg = "Removing order item %s..." % itemId
         self._log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         
@@ -2986,6 +3034,7 @@ class EODMSRAPI():
         order_url = "%s/order/%s/%s" % (self.rapi_root, orderId, itemId)
         
         # Send the JSON request to the RAPI
+        global cancel_res
         try:
             cancel_res = self._session.delete(url=order_url)
             cancel_res.raise_for_status()
@@ -2994,7 +3043,7 @@ class EODMSRAPI():
                 requests.exceptions.Timeout, 
                 requests.exceptions.RequestException) as req_err:
             err = self._get_exception(cancel_res)._get_msgs()
-            msg = "%s Error: %s - %s" % (req_err.__class__.__name__, \
+            msg = "%s Error: %s - %s" % (req_err.__class__.__name__,
                     req_err, err[1])
             self._log_msg(msg, 'warning')
             return msg
