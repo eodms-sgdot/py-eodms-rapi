@@ -65,7 +65,7 @@ class EODMSGeo:
         geographic processes mainly using OGR.
     """
     
-    def __init__(self, eodmsrapi):
+    def __init__(self, eodmsrapi=None):
         """
         Initializer for the Geo object.
         
@@ -77,7 +77,7 @@ class EODMSGeo:
         
         self.logger = logging.getLogger('EODMSRAPI')
         
-        self.wkt_types = ['point', 'linestring', 'polygon', \
+        self.wkt_types = ['point', 'linestring', 'polygon',
                         'multipoint', 'multilinestring', 'multipolygon']
         self.eodmsrapi = eodmsrapi
     
@@ -91,7 +91,8 @@ class EODMSGeo:
             ogr.__doc__.find("Module providing one api for multiple git "
                              "services") > -1:
             msg = "Another package named 'ogr' is installed."
-            self.eodmsrapi._log_msg(msg, 'warning')
+            if self.eodmsrapi is not None:
+                self.eodmsrapi._log_msg(msg, 'warning')
             return False
         
         return True
@@ -144,7 +145,8 @@ class EODMSGeo:
             wkt_val = wkt.loads(in_feat.upper())
         except (ValueError, TypeError) as e:
             if show_error:
-                self.eodmsrapi._log_msg(str(e), 'warning')
+                if self.eodmsrapi is not None:
+                    self.eodmsrapi._log_msg(str(e), 'warning')
             return False
             
         if return_wkt:
@@ -216,8 +218,6 @@ class EODMSGeo:
                     out_geom.append(geom)
         else:
             out_geom = json_geom
-
-        # print("out_geom: %s" % out_geom)
         
         if out == 'wkt':
             out_feats = []
@@ -255,8 +255,9 @@ class EODMSGeo:
             return None
             
         # If the source is in JSON format
-        if self.eodmsrapi._is_json(in_src):
-            in_src = json.loads(in_src)
+        if self.eodmsrapi is not None:
+            if self.eodmsrapi._is_json(in_src):
+                in_src = json.loads(in_src)
             
         if isinstance(in_src, dict):
             # self.feats = self.convert_toWKT(in_src, 'json')
@@ -372,7 +373,8 @@ class EODMSGeo:
         if GDAL_INSTALLED:
             if not self._check_ogr(): 
                 msg = "Cannot convert geometry."
-                self.eodmsrapi._log_msg(msg, 'warning')
+                if self.eodmsrapi is not None:
+                    self.eodmsrapi._log_msg(msg, 'warning')
                 return None
             
             # Create ring
@@ -440,14 +442,17 @@ class EODMSGeo:
             out_wkt = wkt.dumps(in_feat)
         elif in_type == 'list':
             out_wkt = self._convert_list(in_feat)
-        
+        elif in_type == 'file':
+            out_wkts = self.get_features(in_feat)
+            return out_wkts
+
         out_wkt = self._remove_zeroTrail(out_wkt)
         
         return out_wkt
             
     def convert_toGeoJSON(self, results, output='FeatureCollection'):
         """
-        Converts a get of RAPI results to GeoJSON geometries.
+        Converts RAPI results to GeoJSON geometries.
         
         :param results: A list of results from the RAPI.
         :type  results: list
@@ -464,6 +469,8 @@ class EODMSGeo:
             
         features = []
         for rec in results:
+            if self.eodmsrapi is None:
+                return None
             geom = rec.get(self.eodmsrapi._get_conv('geometry'))
             props = self.eodmsrapi._parse_metadata(rec)
             
@@ -533,7 +540,8 @@ class EODMSGeo:
             #   Check if its the wrong ogr
             if not self._check_ogr(): 
                 msg = "Cannot import feature using OGR."
-                self.eodmsrapi._log_msg(msg, 'warning')
+                if self.eodmsrapi is not None:
+                    self.eodmsrapi._log_msg(msg, 'warning')
                 return None
         
             # Determine the OGR driver of the input AOI
@@ -637,12 +645,12 @@ class EODMSGeo:
             elif in_src.find('.json') > -1 or in_src.find('.geojson') > -1:
                 with open(in_src) as f:
                     data = json.load(f)
-                
+
                 feats = data['features']
                 for f in feats:
-                    
+
                     wkt_feat = self._split_multi(f['geometry'])
-                                
+
                     if isinstance(wkt_feat, list):
                         out_feats += wkt_feat
                     else:

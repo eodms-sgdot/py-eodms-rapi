@@ -888,12 +888,8 @@ class EODMSRAPI():
             for idx, f in enumerate(feats):
                 op = f[0].upper()
                 src = f[1]
-
-                # print("op: %s" % op)
                 
                 self.geoms = self.geo.add_geom(src)
-
-                # print("self.geoms: %s" % self.geoms)
                 
                 if self.geoms is None or isinstance(self.geoms, SyntaxError):
                     msg = "Geometry feature #%s could not be determined. " \
@@ -1445,21 +1441,14 @@ class EODMSRAPI():
             self._log_msg(msg)
             return []
 
-        # print(json.dumps(items, indent=4, sort_keys=True))
-        # answer = input("Press enter...")
-
         unique_items = self.remove_duplicate_orders(items)
 
         complete_items = []
         while len(unique_items) > len(complete_items):
-            # print("items length: %s" % len(unique_items))
-            # print("complete_items length: %s" % len(complete_items))
             time.sleep(wait)
 
             start, end = self._get_dateRange(unique_items)
             orders = self.get_orders(dtstart=start, dtend=end)
-
-            # print("orders length: %s" % len(orders))
 
             if len(orders) == 0:
                 msg = "No orders could be found."
@@ -1467,21 +1456,12 @@ class EODMSRAPI():
                 return []
 
             new_count = len(complete_items)
-            #
-            # print("items: %s" % items)
-            # print("complete_items: %s" % complete_items)
-            # answer = input("Press enter...")
 
             for itm in unique_items:
                 item_id = itm['itemId']
                 cur_item = self._get_itemFromOrders(item_id, orders)
                 status = cur_item['status']
                 record_id = cur_item['recordId']
-
-                # print("record_id: %s" % record_id)
-                # print("order record ids: %s" % [o['recordId'] for o in orders])
-                # print("complete_items: %s" % [r['recordId']
-                #                               for r in complete_items])
 
                 # Check record is already complete
                 if self._check_complete(complete_items, record_id):
@@ -1597,7 +1577,8 @@ class EODMSRAPI():
                 return None
             collection = self.collection
         
-        query_url = '%s/collections/%s' % (self.rapi_root, collection)
+        # query_url = '%s/collections/%s' % (self.rapi_root, collection)
+        query_url = f"{self.rapi_root}/collections/{collection}?format=json"
         
         coll_res = self._submit(query_url, timeout=20.0)
         
@@ -1714,7 +1695,8 @@ class EODMSRAPI():
             return self.rapi_collections
         
         # Create the query to get available collections for the current user
-        query_url = "%s/collections" % self.rapi_root
+        # query_url = "%s/collections" % self.rapi_root
+        query_url = f"{self.rapi_root}/collections?format=json"
         
         msg = "Getting Collection information, please wait..."
         self._log_msg(msg)
@@ -1779,7 +1761,8 @@ class EODMSRAPI():
         :rtype:  dict
         """
         
-        query = "%s/order?itemId=%s" % (self.rapi_root, itemId)
+        # query = "%s/order?itemId=%s" % (self.rapi_root, itemId)
+        query = f"{self.rapi_root}/order?itemId={itemId}&format=json"
         log_msg = "Getting order item %s (RAPI query): %s" % (itemId, query)
         msg = "Getting order item %s..." % itemId
         
@@ -1813,7 +1796,8 @@ class EODMSRAPI():
                 # order.append(item)
         ###############################################
                 
-        query_url = "%s/order?orderId=%s" % (self.rapi_root, orderId)
+        # query_url = "%s/order?orderId=%s" % (self.rapi_root, orderId)
+        query_url = f"{self.rapi_root}/order?orderId={orderId}&format=json"
         
         logger.debug("RAPI URL:\n\n%s\n" % query_url)
         
@@ -1865,7 +1849,8 @@ class EODMSRAPI():
         params['maxOrders'] = maxOrders
         param_str = urlencode(params)
         
-        query_url = "%s/order?%s" % (self.rapi_root, param_str)
+        # query_url = "%s/order?%s" % (self.rapi_root, param_str)
+        query_url = f"{self.rapi_root}/order?{param_str}&format=json"
         
         logger.debug("RAPI URL:\n\n%s\n" % query_url)
         
@@ -1971,8 +1956,10 @@ class EODMSRAPI():
         self._log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         
         # Set the RAPI URL
-        query_url = "%s/order/params/%s/%s" % (self.rapi_root,
-                    collection, recordId)
+        # query_url = "%s/order/params/%s/%s" % (self.rapi_root,
+        #             collection, recordId)
+        query_url = f"{self.rapi_root}/order/params/{collection}/" \
+                    f"{recordId}?format=json"
         
         # Send the JSON request to the RAPI
         try:
@@ -2029,8 +2016,10 @@ class EODMSRAPI():
         
         # keys = self._get_metaKeys()
         
-        self._rapi_url = "%s/record/%s/%s" % (self.rapi_root,
-                            self.collection, recordId)
+        # self._rapi_url = "%s/record/%s/%s" % (self.rapi_root,
+        #                     self.collection, recordId)
+        self._rapi_url = f"{self.rapi_root}/record/{self.collection}/" \
+                         f"{recordId}?format=json"
         
         # print("self._rapi_url: %s" % self._rapi_url)
         self.results = self._submit(self._rapi_url)
@@ -2135,7 +2124,8 @@ class EODMSRAPI():
         params['resultField'] = ','.join(result_fields)
         
         query_str = urlencode(params)
-        self._rapi_url = "%s/search?%s" % (self.rapi_root, query_str)
+        # self._rapi_url = "%s/search?%s" % (self.rapi_root, query_str)
+        self._rapi_rul = f"{self.rapi_root}/search?{query_str}&format=json"
         
         # print("self._rapi_url: %s" % self._rapi_url)
         
@@ -2206,6 +2196,13 @@ class EODMSRAPI():
         :type  maxResults: str or int
         
         """
+
+        # print(f"collection: {collection}")
+        # print(f"filters: {filters}")
+        # print(f"features: {features}")
+        # print(f"dates: {dates}")
+        # print(f"resultFields: {resultFields}")
+        # print(f"maxResults: {maxResults}")
         
         # Get the proper Collection ID for the RAPI
         self.collection = self._get_fullCollId(collection)
@@ -2265,7 +2262,8 @@ class EODMSRAPI():
         params['format'] = "json"
         
         query_str = urlencode(params)
-        self._rapi_url = "%s/search?%s" % (self.rapi_root, query_str)
+        # self._rapi_url = "%s/search?%s" % (self.rapi_root, query_str)
+        self._rapi_url = f"{self.rapi_root}/search?{query_str}&format=json"
         
         # Clear self.results
         self.results = []
@@ -2492,7 +2490,8 @@ class EODMSRAPI():
         post_json = json.dumps(post_dict)
         
         # Set the RAPI URL
-        order_url = "%s/order" % self.rapi_root
+        # order_url = "%s/order" % self.rapi_root
+        order_url = f"{self.rapi_root}/order?format=json"
         
         logger.debug("RAPI URL:\n\n%s\n" % order_url)
         logger.debug("RAPI POST:\n\n%s\n" % post_json)
@@ -2566,7 +2565,8 @@ class EODMSRAPI():
         self._log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         
         # Set the RAPI URL
-        order_url = "%s/order/%s/%s" % (self.rapi_root, orderId, itemId)
+        # order_url = "%s/order/%s/%s" % (self.rapi_root, orderId, itemId)
+        order_url = f"{self.rapi_root}/order/{orderId}/{itemId}"
         
         # Send the JSON request to the RAPI
         global cancel_res
