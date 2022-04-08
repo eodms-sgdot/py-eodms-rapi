@@ -1117,26 +1117,27 @@ class EODMSRAPI():
             except requests.exceptions.HTTPError as errh:
                 msg = "HTTP Error: %s" % errh
                 
-                if msg.find('Unauthorized') > -1 or \
-                    msg.find('404 Client Error: Not Found for url') > -1:
+                if msg.find('Unauthorized') > -1 \
+                    or msg.find('404 Client Error: Not Found for url') > -1 \
+                    or msg.find('401') > -1:
                     err = msg
                     query_err = QueryError(err)
             
-                    if self._check_auth(query_err): return None
+                    if self._check_auth(query_err): return err
                     
                     return query_err
                 elif msg.find('400 Client Error') > -1:
                     err = msg
                     query_err = QueryError(err)
             
-                    if self._check_auth(query_err): return None
+                    if self._check_auth(query_err): return err
                     
                     return query_err
                 elif msg.find('500 Server Error') > -1:
                     err = msg
                     query_err = QueryError(err)
             
-                    if self._check_auth(query_err): return None
+                    if self._check_auth(query_err): return err
                     
                     return query_err
                 
@@ -1704,6 +1705,8 @@ class EODMSRAPI():
         
         # Send the query URL
         coll_res = self._submit(query_url, timeout=20.0)
+
+        # print(f"coll_res: {coll_res}")
         
         if coll_res is None: return None
         
@@ -1712,7 +1715,7 @@ class EODMSRAPI():
             msg = "Could not get a list of collections due to '%s'." % \
                 coll_res._get_msgs(True)
             self._log_msg(msg, 'error')
-            return None
+            return QueryError
         
         # Create the collections dictionary
         for coll in coll_res:
@@ -2489,9 +2492,9 @@ class EODMSRAPI():
         # Dump the dictionary into a JSON object
         post_json = json.dumps(post_dict)
         
-        # Set the RAPI URL
+        # Set the RAPI URL for the POST
         # order_url = "%s/order" % self.rapi_root
-        order_url = f"{self.rapi_root}/order?format=json"
+        order_url = f"{self.rapi_root}/order"
         
         logger.debug("RAPI URL:\n\n%s\n" % order_url)
         logger.debug("RAPI POST:\n\n%s\n" % post_json)
