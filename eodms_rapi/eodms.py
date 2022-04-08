@@ -1448,8 +1448,9 @@ class EODMSRAPI():
         while len(unique_items) > len(complete_items):
             time.sleep(wait)
 
-            start, end = self._get_dateRange(unique_items)
-            orders = self.get_orders(dtstart=start, dtend=end)
+            # start, end = self._get_dateRange(unique_items)
+            # orders = self.get_orders(dtstart=start, dtend=end)
+            orders = self.get_orders()
 
             if len(orders) == 0:
                 msg = "No orders could be found."
@@ -1823,7 +1824,7 @@ class EODMSRAPI():
                 
         return order
                 
-    def get_orders(self, dtstart=None, dtend=None, maxOrders=10000, 
+    def get_orders(self, dtstart=None, dtend=None, maxOrders=100,
                     outFormat='json'):
         """
         Sends a query to retrieve orders from the RAPI.
@@ -1853,7 +1854,7 @@ class EODMSRAPI():
         param_str = urlencode(params)
         
         # query_url = "%s/order?%s" % (self.rapi_root, param_str)
-        query_url = f"{self.rapi_root}/order?{param_str}&format=json"
+        query_url = f"{self.rapi_root}/order?{param_str}&format={outFormat}"
         
         logger.debug("RAPI URL:\n\n%s\n" % query_url)
         
