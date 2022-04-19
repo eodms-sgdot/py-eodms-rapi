@@ -96,7 +96,7 @@ class QueryError:
         
         if isinstance(self.msgs, list):
             if as_str:
-                return ' '.join(self.msgs)
+                return ' '.join(filter(None, self.msgs))
         
         return self.msgs
         
@@ -377,8 +377,9 @@ class EODMSRAPI():
                     the given image.
         :rtype: dict
         """
-        
-        r = self._submit(record['thisRecordUrl'], timeout, as_json=False)
+
+        record_url = f"{record['thisRecordUrl']}?format=json"
+        r = self._submit(record_url, timeout, as_json=False)
         
         if r is None: return None
         
@@ -483,6 +484,7 @@ class EODMSRAPI():
         if self._is_json(in_str): return None
         
         # If the input is a string, convert it to a xml.etree.ElementTree.Element
+        print(f"in_str: {in_str}")
         if isinstance(in_str, str):
             root = ElementTree.fromstring(in_str)
         else:
@@ -608,13 +610,15 @@ class EODMSRAPI():
         :return: The specific order with the given order item ID.
         :rtype: dict
         """
-        
+
+        # print(f"input itemId: {item_id}")
         for o in orders:
+            # print(f"o: {o}")
             if 'parameters' in o.keys():
                 if 'ParentItemId' in o['parameters'].keys():
                     if str(o['parameters']['ParentItemId']) == str(item_id):
                         return o
-            
+            # print(f"  itemId: {o['itemId']}")
             if str(o['itemId']) == str(item_id):
                 return o
                 
@@ -1386,7 +1390,7 @@ class EODMSRAPI():
         msg = '%s has been downloaded.' % dest_fn
         self._log_msg(msg)
         
-    def download(self, items, dest, wait=10.0):
+    def download(self, items, dest, wait=10.0, max_downloads=100):
         """
         Downloads a list of order items from the EODMS RAPI.
         
@@ -1450,12 +1454,23 @@ class EODMSRAPI():
 
             # start, end = self._get_dateRange(unique_items)
             # orders = self.get_orders(dtstart=start, dtend=end)
-            orders = self.get_orders()
+            # print(f"max_downloads: {max_downloads}")
+            # answer = input("Press enter...")
+            maxOrders = max_downloads + int((max_downloads / 4))
+            orders = self.get_orders(maxOrders=maxOrders)
+
+            if orders is None:
+                msg = "An error occurred while getting a list of orders. " \
+                      "Downloads unsuccessful."
+                self._log_msg(msg)
+                return []
 
             if len(orders) == 0:
                 msg = "No orders could be found."
                 self._log_msg(msg)
                 return []
+
+            # self._log_msg(f"Number of orders found: {len(orders)}")
 
             new_count = len(complete_items)
 
@@ -1521,9 +1536,18 @@ class EODMSRAPI():
                         str_val = d['stringValue']
                         str_val = str_val.replace('</br>', '')
 
+                        # print(f"str_val: {str_val}")
+
+                        str_val = str_val.replace('&', '?')
+                        # str_val = str_val.split("&")[0]
+
+                        # print(f"str_val: {str_val}")
+
                         # Parse the HTML text of the destination string
                         root = ElementTree.fromstring(str_val)
                         url = root.text
+                        url = url.split("?")[0]
+
                         fn = os.path.basename(url)
 
                         # Download the image
@@ -2487,25 +2511,32 @@ class EODMSRAPI():
             items.append(item)
         
         # Create the dictionary for the POST request JSON
-        post_dict = {"destinations": destinations, 
-                    "items": items}
-                    
-        # Dump the dictionary into a JSON object
-        post_json = json.dumps(post_dict)
+        order_posts = [{"destinations": destinations,
+                        "items": items[i:i + 100]} for i in range(0, len(items),
+                                                                100)]
+
+        # print(f"order_posts: {order_posts}")
+        # print(f"Number of posts: {len(order_posts)}")
+        # for i in order_posts:
+        #     print(len(i['items']))
+        # answer = input("Press enter...")
         
         # Set the RAPI URL for the POST
         # order_url = "%s/order" % self.rapi_root
         order_url = f"{self.rapi_root}/order"
         
-        logger.debug("RAPI URL:\n\n%s\n" % order_url)
-        logger.debug("RAPI POST:\n\n%s\n" % post_json)
+        logger.debug(f"RAPI URL:\n\n{order_url}\n")
         
         # Send the JSON request to the RAPI
         time_submitted = datetime.datetime.now(tzlocal()).isoformat()
         try:
-            order_res = self._session.post(url=order_url, data=post_json,
+            for p in order_posts:
+                # Dump the dictionary into a JSON object
+                post_json = json.dumps(p)
+                logger.debug(f"RAPI POST:\n\n{post_json}\n")
+                order_res = self._session.post(url=order_url, data=post_json,
                                            verify=self.verify)
-            order_res.raise_for_status()
+                order_res.raise_for_status()
         except (requests.exceptions.HTTPError, 
                 requests.exceptions.ConnectionError, 
                 requests.exceptions.Timeout, 
