@@ -25,46 +25,51 @@
 ##############################################################################
 
 import os
-import sys
+# import sys
 import re
 from xml.etree import ElementTree
 import json
 import logging
-import traceback
+# import traceback
 from geomet import wkt
-import decimal
+from warnings import warn
+
+# import decimal
 
 try:
     import osgeo.ogr as ogr
     import osgeo.osr as osr
+
     GDAL_INSTALLED = True
 except ImportError:
     try:
         import ogr
         import osr
+
         GDAL_INSTALLED = True
     except ImportError:
         GDAL_INSTALLED = False
-        
+
+
 # try:
-    # import ogr
-    # import osr
-    # GDAL_INSTALLED = True
+# import ogr
+# import osr
+# GDAL_INSTALLED = True
 # except ImportError:
-    # GDAL_INSTALLED = False
-    
+# GDAL_INSTALLED = False
+
 # try:
-    # import geojson
-    # GEOJSON_INSTALLED = True
+# import geojson
+# GEOJSON_INSTALLED = True
 # except ImportError:
-    # GEOJSON_INSTALLED = False
+# GEOJSON_INSTALLED = False
 
 class EODMSGeo:
     """
     The Geo class contains all the methods and functions used to perform
         geographic processes mainly using OGR.
     """
-    
+
     def __init__(self, eodmsrapi=None):
         """
         Initializer for the Geo object.
@@ -74,29 +79,52 @@ class EODMSGeo:
         
         """
         self.aoi = None
-        
+
         self.logger = logging.getLogger('EODMSRAPI')
-        
+
         self.wkt_types = ['point', 'linestring', 'polygon',
-                        'multipoint', 'multilinestring', 'multipolygon']
+                          'multipoint', 'multilinestring', 'multipolygon']
         self.eodmsrapi = eodmsrapi
-    
+        self.logger = eodmsrapi.logger
+        self.feats = None
+
+    ###############################################################
+    # Backwards compatibility methods
+    ###############################################################
+
+    def convert_imageGeom(self, coords, output='array'):
+        warn("Method 'convert_imageGeom' is deprecated. Please use "
+             "'convert_image_geom'.", DeprecationWarning, stacklevel=2)
+        return self.convert_image_geom(coords, output)
+
+    def convert_toWKT(self, in_feat, in_type):
+        warn("Method 'convert_toWKT' is deprecated. Please use "
+             "'convert_to_wkt'.", DeprecationWarning, stacklevel=2)
+        return self.convert_to_wkt(in_feat, in_type)
+
+    def convert_toGeoJSON(self, results, output='FeatureCollection'):
+        warn("Method 'convert_toGeoJSON' is deprecated. Please use "
+             "'convert_to_geojson'.", DeprecationWarning, stacklevel=2)
+        return self.convert_to_geojson(results, output)
+
+    ###############################################################
+
     def _check_ogr(self):
         """
         There is another ogr Python package. This will check if it was
             imported instead of the proper ogr.
         """
-        
+
         if ogr.__doc__ is not None and \
-            ogr.__doc__.find("Module providing one api for multiple git "
-                             "services") > -1:
+                ogr.__doc__.find("Module providing one api for multiple git "
+                                 "services") > -1:
             msg = "Another package named 'ogr' is installed."
             if self.eodmsrapi is not None:
-                self.eodmsrapi._log_msg(msg, 'warning')
+                self.eodmsrapi.log_msg(msg, 'warning')
             return False
-        
+
         return True
-    
+
     def _convert_list(self, in_feat, out='wkt'):
         """
         Converts a list to a specified output.
@@ -109,21 +137,21 @@ class EODMSGeo:
         :return: The converted feature(s) to the specified output.
         :rtype: json or str
         """
-        
+
         pnts = [list(p) for p in in_feat]
-            
+
         if len(pnts) == 1:
             geojson = {"type": "Point", "coordinates": pnts[0]}
         else:
             geojson = {"type": "Polygon", "coordinates": [pnts]}
-        
+
         if out == 'json':
             return geojson
         else:
             out_wkt = wkt.dumps(geojson)
-            
+
         return out_wkt
-    
+
     def _is_wkt(self, in_feat, show_error=False, return_wkt=False):
         """
         Verifies if a string is WKT.
@@ -140,21 +168,21 @@ class EODMSGeo:
                 is True or return just True; False if not valid.
         :rtype: str or boolean
         """
-        
+
         try:
             wkt_val = wkt.loads(in_feat.upper())
         except (ValueError, TypeError) as e:
             if show_error:
                 if self.eodmsrapi is not None:
-                    self.eodmsrapi._log_msg(str(e), 'warning')
+                    self.eodmsrapi.log_msg(str(e), 'warning')
             return False
-            
+
         if return_wkt:
             return wkt_val
         else:
             return True
-            
-    def _remove_zeroTrail(self, in_wkt):
+
+    def _remove_zero_trail(self, in_wkt):
         """
         Removes the trailing zeros in coordinates after the decimal in a WKT.
         
@@ -164,16 +192,16 @@ class EODMSGeo:
         :return: The WKT without trailing zeros after the decimal.
         :rtype: str
         """
-        
+
         numbers = re.findall("\d+\.\d+", in_wkt)
-        
+
         out_wkt = in_wkt
         for num in numbers:
             flt_num = float(num)
             out_wkt = out_wkt.replace(num, str(flt_num))
-            
+
         return out_wkt
-        
+
     def _split_multi(self, feats, in_type='json', out='wkt'):
         """
         Splits multi-geometry into several valid geometry for the RAPI.
@@ -189,17 +217,17 @@ class EODMSGeo:
         :return: The geometry (or geometries) in the specified output type.
         :rtype: json, str
         """
-        
+
         if in_type == 'wkt':
-            
+
             # Convert feats to json for easier manipulation
             json_geom = self._is_wkt(feats, True, True)
-            
+
         elif in_type == 'list':
             json_geom = self._convert_list(feats, 'json')
         else:
             json_geom = feats
-        
+
         geom_type = json_geom.get('type').lower()
         if geom_type.find('multi') > -1:
             feat_coords = json_geom.get('coordinates')
@@ -218,20 +246,20 @@ class EODMSGeo:
                     out_geom.append(geom)
         else:
             out_geom = json_geom
-        
+
         if out == 'wkt':
             out_feats = []
             if isinstance(out_geom, list):
                 for g in out_geom:
-                    wkt_feat = self.convert_toWKT(g, 'json')
+                    wkt_feat = self.convert_to_wkt(g, 'json')
                     out_feats.append(wkt_feat)
             else:
-                out_feats = self.convert_toWKT(out_geom, 'json')
+                out_feats = self.convert_to_wkt(out_geom, 'json')
         else:
             out_feats = out_geom
-        
+
         return out_feats
-        
+
     def add_geom(self, in_src):
         """
         Processes the source and converts it for use in the RAPI.
@@ -250,30 +278,30 @@ class EODMSGeo:
         :rtype:  str
         
         """
-        
+
         if in_src is None:
             return None
-            
+
         # If the source is in JSON format
         if self.eodmsrapi is not None:
-            if self.eodmsrapi._is_json(in_src):
+            if self.eodmsrapi.is_json(in_src):
                 in_src = json.loads(in_src)
-            
+
         if isinstance(in_src, dict):
             # self.feats = self.convert_toWKT(in_src, 'json')
             self.feats = self._split_multi(in_src, 'json')
             return self.feats
-            
+
         if isinstance(in_src, list):
             # self.feats = self.convert_toWKT(in_src, 'list')
             self.feats = self._split_multi(in_src, 'list')
             return self.feats
-        
+
         # If the source is a file
         if os.path.isfile(in_src):
             self.feats = self.get_features(in_src)
             return self.feats
-        
+
         if os.path.isdir(in_src):
             return None
 
@@ -284,15 +312,15 @@ class EODMSGeo:
                 # Can only be a single WKT object
                 self.feats = self._split_multi(in_src, 'wkt')
                 return self.feats
-            
+
         # If the source is a list of coordinates
         if not isinstance(in_src, list):
             try:
-                in_src = eval(in_src)
+                eval(in_src)
             except SyntaxError as err:
                 self.logger.warning("%s" % err)
                 return err
-                
+
     def convert_coords(self, coord_lst, geom_type):
         """
         Converts a list of points to GeoJSON format.
@@ -307,28 +335,32 @@ class EODMSGeo:
         :rtype:  dict
         
         """
-        
+
         pnts_array = []
+        pnts = None
         for c in coord_lst:
-            pnts = [p.strip('\n').strip('\t').split(',') for p in \
+            pnts = [p.strip('\n').strip('\t').split(',') for p in
                     c.split(' ') if not p.strip('\n').strip('\t') == '']
             pnts_array += pnts
-        
+
+        if pnts is None:
+            return None
+
         if geom_type == 'Point':
-            json_geom = {'type': 'Point', 'coordinates': \
-                        [float(pnts[0][0]), float(pnts[0][1])]}
+            json_geom = {'type': 'Point', 'coordinates': [float(pnts[0][0]),
+                                                          float(pnts[0][1])]}
         elif geom_type == 'LineString':
-            json_geom = {'type': 'LineString', 'coordinates': \
-                        [[float(p[0]), float(p[1])] \
-                        for p in pnts]}
+            json_geom = {'type': 'LineString', 'coordinates': [[float(p[0]),
+                                                                float(p[1])]
+                                                               for p in pnts]}
         else:
-            json_geom = {'type': 'Polygon', 'coordinates': \
-                        [[[float(p[0]), float(p[1])] \
-                        for p in pnts]]}
-                        
+            json_geom = {'type': 'Polygon', 'coordinates': [[[float(p[0]),
+                                                              float(p[1])]
+                                                             for p in pnts]]}
+
         return json_geom
-        
-    def convert_imageGeom(self, coords, output='array'):
+
+    def convert_image_geom(self, coords, output='array'):
         """
         Converts a list of coordinates from the RAPI to a polygon geometry,
             array of points or as WKT.
@@ -342,9 +374,9 @@ class EODMSGeo:
         :rtype:  multiple types
         
         """
-        
+
         if isinstance(coords, dict):
-            
+
             if 'coordinates' in coords.keys():
                 val = coords['coordinates']
                 level = 0
@@ -352,31 +384,31 @@ class EODMSGeo:
                     val = val[0]
                     level += 1
                 lst_level = level - 2
-                
+
                 if lst_level > -1:
                     pnt_array = eval("coords['coordinates']" +
-                                     '[0]'*(lst_level))
+                                     '[0]' * lst_level)
                 else:
                     pnt_array = coords['coordinates']
             else:
-                logger.warning("No coordinates provided.")
+                self.logger.warning("No coordinates provided.")
                 return None
         else:
             pnt_array = coords[0]
-        
+
         # Get the points from the coordinates list
         pnt1 = pnt_array[0]
         pnt2 = pnt_array[1]
         pnt3 = pnt_array[2]
         pnt4 = pnt_array[3]
-        
+
         if GDAL_INSTALLED:
-            if not self._check_ogr(): 
+            if not self._check_ogr():
                 msg = "Cannot convert geometry."
                 if self.eodmsrapi is not None:
-                    self.eodmsrapi._log_msg(msg, 'warning')
+                    self.eodmsrapi.log_msg(msg, 'warning')
                 return None
-            
+
             # Create ring
             ring = ogr.Geometry(ogr.wkbLinearRing)
             ring.AddPoint(pnt1[0], pnt1[1])
@@ -388,7 +420,7 @@ class EODMSGeo:
             # Create polygon
             poly = ogr.Geometry(ogr.wkbPolygon)
             poly.AddGeometry(ring)
-            
+
             # Send specified output
             if output == 'wkt':
                 return poly.ExportToWkt()
@@ -396,47 +428,50 @@ class EODMSGeo:
                 return poly
             else:
                 return pnt_array
-                
+
         else:
             if output == 'wkt':
                 # Convert values in point array to strings
                 pnt_array = [[str(p[0]), str(p[1])] for p in pnt_array]
-                
-                return "POLYGON ((%s))" % ', '.join([' '.join(pnt) \
-                    for pnt in pnt_array])
+
+                return "POLYGON ((%s))" % ', '.join([' '.join(pnt)
+                                                     for pnt in pnt_array])
             else:
                 return pnt_array
-            
+
     # def convert_fromWKT(self, in_feat):
-        # """
-        # Converts a WKT to a GDAL geometry.
-        
-        # :param in_feat: The WKT of the feature.
-        # :type  in_feat: str
-        
-        # :return: The polygon geometry of the input WKT.
-        # :rtype:  ogr.Geometry
-        
-        # """
-        
-        # if GDAL_INSTALLED:
-            # out_poly = ogr.CreateGeometryFromWkt(in_feat)
-        
-        # return out_poly
-        
-    def convert_toWKT(self, in_feat, in_type):
+    # """
+    # Converts a WKT to a GDAL geometry.
+
+    # :param in_feat: The WKT of the feature.
+    # :type  in_feat: str
+
+    # :return: The polygon geometry of the input WKT.
+    # :rtype:  ogr.Geometry
+
+    # """
+
+    # if GDAL_INSTALLED:
+    # out_poly = ogr.CreateGeometryFromWkt(in_feat)
+
+    # return out_poly
+
+    def convert_to_wkt(self, in_feat, in_type):
         """
         Converts a feature into WKT format.
         
         :param in_feat: The input feature, either as a GeoJSON 
                 dictionary or list of points.
         :type  in_feat: dict or list
+        :param in_type: The type of the input, whether it's 'json', 'list'
+            or 'file'.
+        :type  in_type: str
             
         :return: The input feature converted to WKT.
         :rtype:  str
         
         """
-        
+
         out_wkt = None
         if in_type == 'json':
             out_wkt = wkt.dumps(in_feat)
@@ -446,11 +481,11 @@ class EODMSGeo:
             out_wkts = self.get_features(in_feat)
             return out_wkts
 
-        out_wkt = self._remove_zeroTrail(out_wkt)
-        
+        out_wkt = self._remove_zero_trail(out_wkt)
+
         return out_wkt
-            
-    def convert_toGeoJSON(self, results, output='FeatureCollection'):
+
+    def convert_to_geojson(self, results, output='FeatureCollection'):
         """
         Converts RAPI results to GeoJSON geometries.
         
@@ -463,64 +498,65 @@ class EODMSGeo:
         :return: A dictionary of a GeoJSON FeatureCollection.
         :rtype: dict
         """
-        
+
         if isinstance(results, dict):
             results = [results]
-            
+
         features = []
         for rec in results:
             if self.eodmsrapi is None:
                 return None
-            geom = rec.get(self.eodmsrapi._get_conv('geometry'))
-            props = self.eodmsrapi._parse_metadata(rec)
-            
+            geom = rec.get(self.eodmsrapi.get_conv('geometry'))
+            props = self.eodmsrapi.parse_metadata(rec)
+
             feat = {"type": "Feature", "geometry": geom, "properties": props}
-            
+
             features.append(feat)
-        
-        if output == 'list': return features
-        
-        feature_collection = {"type": "FeatureCollection", 
-                            "features": features}
-        
+
+        if output == 'list':
+            return features
+
+        feature_collection = {"type": "FeatureCollection",
+                              "features": features}
+
         return feature_collection
-        
+
     def process_polygon(self, geom, t_crs):
-        
+
         # Convert the geometry to WGS84
         s_crs = geom.GetSpatialReference()
-        
+
         if s_crs is None:
             s_crs = osr.SpatialReference()
             s_crs.ImportFromEPSG(4326)
-        
+
         # Get the EPSG codes from the spatial references
-        epsg_sCrs = s_crs.GetAttrValue("AUTHORITY", 1)
-        epsg_tCrs = t_crs.GetAttrValue("AUTHORITY", 1)
-        
-        if not str(epsg_sCrs) == '4326':
-            if epsg_tCrs is None:
+        epsg_scrs = s_crs.GetAttrValue("AUTHORITY", 1)
+        epsg_tcrs = t_crs.GetAttrValue("AUTHORITY", 1)
+
+        if not str(epsg_scrs) == '4326':
+            if epsg_tcrs is None:
                 print("\nCannot reproject AOI.")
                 return None
-            
-            if not s_crs.IsSame(t_crs) and not epsg_sCrs == epsg_tCrs:
+
+            if not s_crs.IsSame(t_crs) and not epsg_scrs == epsg_tcrs:
                 # Create the CoordinateTransformation
                 print("\nReprojecting input AOI...")
-                coordTrans = osr.CoordinateTransformation(s_crs, t_crs)
-                geom.Transform(coordTrans)
-                
+                coord_trans = osr.CoordinateTransformation(s_crs, t_crs)
+                geom.Transform(coord_trans)
+
                 # Reverse x and y of transformed geometry
                 ring = geom.GetGeometryRef(0)
                 for i in range(ring.GetPointCount()):
                     ring.SetPoint(i, ring.GetY(i), ring.GetX(i))
-        
+
         # Convert multipolygon to polygon (if applicable)
         if geom.GetGeometryType() == 6:
             geom = geom.UnionCascaded()
-        
+
         # Convert to WKT
         return geom.ExportToWkt()
-        
+
     def get_features(self, in_src):
         """
         Extracts the features from an AOI file.
@@ -533,17 +569,17 @@ class EODMSGeo:
         :rtype:  str
         
         """
-        
+
         out_feats = []
         if GDAL_INSTALLED:
             # There is another ogr Python package that might have been imported
             #   Check if its the wrong ogr
-            if not self._check_ogr(): 
+            if not self._check_ogr():
                 msg = "Cannot import feature using OGR."
                 if self.eodmsrapi is not None:
-                    self.eodmsrapi._log_msg(msg, 'warning')
+                    self.eodmsrapi.log_msg(msg, 'warning')
                 return None
-        
+
             # Determine the OGR driver of the input AOI
             if in_src.find('.gml') > -1:
                 ogr_driver = 'GML'
@@ -557,91 +593,92 @@ class EODMSGeo:
                 err_msg = "The AOI file type could not be determined."
                 self.logger.error(err_msg)
                 return None
-                
+
             # Open AOI file and extract AOI
             driver = ogr.GetDriverByName(ogr_driver)
             ds = driver.Open(in_src, 0)
-            
+
             # Get the layer from the file
             lyr = ds.GetLayer()
-            
+
             # Set the target spatial reference to WGS84
             t_crs = osr.SpatialReference()
             t_crs.ImportFromEPSG(4326)
-            
+
             for feat in lyr:
                 # Create the geometry
                 geom = feat.GetGeometryRef()
-                
+
                 if geom.GetGeometryName() == 'MULTIPOLYGON':
                     for geom_part in geom:
                         # print("geom_part: %s" % geom_part)
                         out_feats.append(self.process_polygon(geom_part, t_crs))
                 else:
                     out_feats.append(self.process_polygon(geom, t_crs))
-                
+
         else:
-            
+
             geom_choices = ['Point', 'LineString', 'Polygon']
-            
+
             # Determine the OGR driver of the input AOI
             if in_src.find('.gml') > -1 or in_src.find('.kml') > -1:
-                
+
                 with open(in_src, 'rt') as f:
                     tree = ElementTree.parse(f)
                     root = tree.getroot()
-                
+
                 if in_src.find('.gml') > -1:
-                    for feat in root.findall('.//{http://www.opengis.net/' 
-                        'gml}featureMember'):
-                        
+                    for feat in root.findall('.//{http://www.opengis.net/'
+                                             'gml}featureMember'):
+
                         # Get geometry type
                         geom_type = 'Polygon'
                         for elem in feat.findall('*'):
-                            tag = elem.tag.replace('{http://ogr.maptools.' 
-                                'org/}', '')
+                            tag = elem.tag.replace('{http://ogr.maptools.'
+                                                   'org/}', '')
                             if tag in geom_choices:
                                 geom_type = tag
-                        
+
                         coord_lst = []
-                        for coords in root.findall('.//{http://www.opengis' 
-                            '.net/gml}coordinates'):
+                        for coords in root.findall('.//{http://www.opengis'
+                                                   '.net/gml}coordinates'):
                             coord_lst.append(coords.text)
-                            
+
                         json_geom = self.convert_coords(coord_lst, geom_type)
-                        
+
                         wkt_feat = self._split_multi(json_geom)
-                            
+
                         if isinstance(wkt_feat, list):
                             out_feats += wkt_feat
                         else:
                             out_feats.append(wkt_feat)
                 else:
-                    for plcmark in root.findall('.//{http://www.opengis.net/' 
-                        'kml/2.2}Placemark'):
-                        
+                    for plcmark in root.findall('.//{http://www.opengis.net/'
+                                                'kml/2.2}Placemark'):
+
                         # Get geometry type
                         geom_type = 'Polygon'
                         for elem in plcmark.findall('*'):
-                            tag = elem.tag.replace('{http://www.opengis.net/' 
-                                    'kml/2.2}', '')
+                            tag = elem.tag.replace('{http://www.opengis.net/'
+                                                   'kml/2.2}', '')
                             if tag in geom_choices:
                                 geom_type = tag
-                        
+
                         coord_lst = []
-                        for coords in plcmark.findall(\
-                            './/{http://www.opengis.net/kml/2.2}coordinates'):
+                        for coords in plcmark.findall(
+                                './/{http://www.opengis.net/kml/2.2}'
+                                'coordinates'):
                             coord_lst.append(coords.text)
-                        
+
                         json_geom = self.convert_coords(coord_lst, geom_type)
-                        
+
                         wkt_feat = self._split_multi(json_geom)
-                        
+
                         if isinstance(wkt_feat, list):
                             out_feats += wkt_feat
                         else:
                             out_feats.append(wkt_feat)
-                
+
             elif in_src.find('.json') > -1 or in_src.find('.geojson') > -1:
                 with open(in_src) as f:
                     data = json.load(f)
@@ -655,14 +692,14 @@ class EODMSGeo:
                         out_feats += wkt_feat
                     else:
                         out_feats.append(wkt_feat)
-                            
+
             elif in_src.find('.shp') > -1:
                 msg = "Could not open shapefile. The GDAL Python Package " \
-                        "must be installed to use shapefiles."
+                      "must be installed to use shapefiles."
                 self.logger.warning(msg)
                 return None
-            else:
-                self.logger.warning(msg)
-                return None
-            
+            # else:
+            #     self.logger.warning(msg)
+            #     return None
+
         return out_feats
