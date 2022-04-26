@@ -31,7 +31,7 @@ Search, Order and Download
    rapi.search("RCMImageProducts", filters, feat, dates, result_fields, 2)
 
    # Get results
-   rapi.set_fieldConvention('upper')
+   rapi.set_field_convention('upper')
    res = rapi.get_results('full')
 
    # Now order the images
@@ -55,7 +55,7 @@ Get Available Order Parameters for an Image
    rapi = EODMSRAPI('username', 'password')
 
    # Get the order parameters for RCM image with Record ID 7627902
-   param_res = rapi.get_orderParameters('RCMImageProducts', '7627902')
+   param_res = rapi.get_order_parameters('RCMImageProducts', '7627902')
 
    # Print the parameters
    print("param_res: %s" % param_res)
@@ -71,7 +71,7 @@ Cancel an Existing Order Item
    rapi = EODMSRAPI('eodms-username', 'eodms-password')
 
    # Cancel the order item with Order ID 48188 and Order Item ID 289377
-   delete_res = rapi.cancel_orderItem('48188', '289377')
+   delete_res = rapi.cancel_order_item('48188', '289377')
 
 Get a List of Available Fields for a Collection
 -----------------------------------------------
@@ -84,7 +84,7 @@ Get a List of Available Fields for a Collection
    rapi = EODMSRAPI('eodms-username', 'eodms-password')
 
    # Get the available field information for RCMImageProducts collection
-   fields = rapi.get_availableFields('RCMImageProducts')
+   fields = rapi.get_available_fields('RCMImageProducts')
    print(fields)
 
    >>> {'search': {'Special Handling Required': {'id': 'RCM.SPECIAL_HANDLING_REQUIRED', 'datatype': 'String'}, ...}, 
@@ -92,7 +92,7 @@ Get a List of Available Fields for a Collection
    }
 
    # Get a list of available field IDs for RCMImageProducts collection
-   field_ids = rapi.get_availableFields('RCMImageProducts', name_type='id')
+   field_ids = rapi.get_available_fields('RCMImageProducts', name_type='id')
    print(field_ids)
 
    >>> {'search': ['RCM.SPECIAL_HANDLING_REQUIRED', 'ARCHIVE_IMAGE.CLIENT_ORDER_NUMBER', ...], 
@@ -100,7 +100,7 @@ Get a List of Available Fields for a Collection
    }
 
    # Get a list of available field names used to submit searches (rapi.search())
-   field_titles = rapi.get_availableFields('RCMImageProducts', name_type='title')
+   field_titles = rapi.get_available_fields('RCMImageProducts', name_type='title')
    print(field_titles)
 
    >>> {'search': ['Special Handling Required', 'Client Order Number', 'Order Key', ...], 
