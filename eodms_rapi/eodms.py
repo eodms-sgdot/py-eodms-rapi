@@ -1453,7 +1453,7 @@ class EODMSRAPI:
         msg = f'{dest_fn} has been downloaded.'
         self.log_msg(msg)
 
-    def download(self, items, dest, wait=10.0, max_downloads=100):
+    def download(self, items, dest, wait=10.0, max_attempts=None):
         """
         Downloads a list of order items from the EODMS RAPI.
 
@@ -1489,8 +1489,10 @@ class EODMSRAPI:
         :param wait: Sets the time to wait before checking the status of
             all orders.
         :type  wait: float or int
-        :param max_downloads: The maximum order items to check when downloading.
-        :type  max_downloads: int
+        :param max_attempts: The number of download attempts before stopping
+            downloads. If None, the script will continue to check and download
+            orders until all orders have been downloaded.
+        :type  max_attempts: int
 
         :return: A list of the download (completed) items.
         :rtype: list
@@ -1515,9 +1517,17 @@ class EODMSRAPI:
 
         unique_items = self.remove_duplicate_orders(items)
 
+        attempt = 0
         complete_items = []
         while len(unique_items) > len(complete_items):
             time.sleep(wait)
+            attempt += 1
+
+            if max_attempts is not None:
+                if attempt > max_attempts:
+                    msg = "Maximum number of attempts reached."
+                    self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+                    return complete_items
 
             # start, end = self._get_dateRange(unique_items)
             # orders = self.get_orders(dtstart=start, dtend=end)
@@ -2766,7 +2776,8 @@ class EODMSRAPI:
         :param orders: A list of orders.
         :type  orders: list
 
-        :return:
+        :return: A unique list of orders
+        :rtype:  list
         """
 
         # Get duplicate record IDs
@@ -2901,7 +2912,6 @@ class EODMSRAPI:
         order_posts = [{"destinations": destinations,
                         "items": items[i:i + 100]} for i in range(0, len(items),
                                                                   100)]
-
         # Set the RAPI URL for the POST
         order_url = f"{self.rapi_root}/order"
 
@@ -2909,61 +2919,37 @@ class EODMSRAPI:
 
         # Send the JSON request to the RAPI
         time_submitted = datetime.datetime.now(tzlocal()).isoformat()
-        order_res = None
+        # order_res = None
+        all_items = []
         for p in order_posts:
             # Dump the dictionary into a JSON object
             post_json = json.dumps(p)
             logger.debug(f"RAPI POST:\n\n{post_json}\n")
             order_res = self._submit(order_url, 'POST', post_json)
-            # order_res = self._session.post(url=order_url, data=post_json,
-            #                                verify=self.verify)
-            # order_res.raise_for_status()
-        # except (requests.exceptions.HTTPError,
-        #         requests.exceptions.ConnectionError,
-        #         requests.exceptions.Timeout,
-        #         requests.exceptions.RequestException) as req_err:
-        #     msg = f"{req_err.__class__.__name__} Error: {req_err}"
-        #     self.log_msg(msg, 'warning')
-        #     return msg
-        # except requests.exceptions.SSLError:
-        #     try:
-        #         for p in order_posts:
-        #             # Dump the dictionary into a JSON object
-        #             post_json = json.dumps(p)
-        #             logger.debug(f"RAPI POST:\n\n{post_json}\n")
-        #             order_res = self._session.post(url=order_url,
-        #                                            data=post_json,
-        #                                            verify=self.verify)
-        #             order_res.raise_for_status()
-        #     except (requests.exceptions.HTTPError,
-        #             requests.exceptions.ConnectionError,
-        #             requests.exceptions.Timeout,
-        #             requests.exceptions.RequestException) as req_err:
-        #         msg = f"{req_err.__class__.__name__} Error: {req_err}"
-        #         self.log_msg(msg, 'warning')
-        #         return msg
-        # except KeyboardInterrupt:
-        #     msg = "Process ended by user."
-        #     self.log_msg(msg, out_indent='\n')
-        #     print()
-        #     return None
 
-        if order_res is None or not order_res.ok:
-            err = self._get_exception(order_res)
-            if isinstance(err, list):
-                msg = '; '.join(err)
-                self.log_msg(msg, 'warning')
+            if order_res is None:
+                err = self._get_exception(order_res)
+                if isinstance(err, list):
+                    msg = '; '.join(err)
+                    self.log_msg(msg, 'warning')
+                    return msg
+
+            if isinstance(order_res, requests.Response) and not order_res.ok:
+                msg = "Order submission failed."
+                self.log_msg(msg, 'error')
                 return msg
 
-        # Add the time the order was submitted
-        items = order_res.json()['items']
+            # Add the time the order was submitted
+            items = order_res['items']
 
-        for i in items:
-            i['dateRapiOrdered'] = time_submitted
+            for i in items:
+                i['dateRapiOrdered'] = time_submitted
 
-        order_res = {'items': items}
+            all_items += items
+
+        final_res = {'items': all_items}
 
         msg = "Order submitted successfully."
         self.log_msg(msg)
 
-        return order_res
+        return final_res
