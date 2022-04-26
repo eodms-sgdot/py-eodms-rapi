@@ -413,7 +413,7 @@ There are three options for getting results:
 
     The following example is the output from the 'geojson' results returned from the RAPI when using the 'upper' field name convention:
 
-	.. code-block:: json
+	.. code-block:: python
 
 	   >>> print(rapi.get_results('geojson'))
 	   | EODMSRAPI | Fetching result metadata: 100%|████████████████████████████████████████| 29/29 [00:07<00:00,  3.86item/s]
