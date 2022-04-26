@@ -91,7 +91,7 @@ Contents
 Support
 -------
 
-If you have any issues or questions, please contact the EODMS Support Team at `nrcan.eodms-sgdot.rncan@canada.ca <mailto:nrcan.eodms-sgdot.rncan@canada.ca?subject=EODMS RAPI Client>`_.
+If you have any issues or questions, please contact the EODMS Support Team at `eodms-sgdot@nrcan-rncan.gc.ca <mailto:eodms-sgdot@nrcan-rncan.gc.ca?subject=EODMS RAPI Client>`_.
 
 Acknowledgements
 ----------------
@@ -103,7 +103,7 @@ License
 
 MIT License
 
-Copyright (c) 2021 Her Majesty the Queen in Right of Canada, as 
+Copyright (c) 2020-2022 Her Majesty the Queen in Right of Canada, as 
 represented by the President of the Treasury Board
 
 Permission is hereby granted, free of charge, to any person obtaining a 
