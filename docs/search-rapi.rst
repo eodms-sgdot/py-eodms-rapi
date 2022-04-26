@@ -119,72 +119,72 @@ The following example will search for images with **Beam Mnemonic** that equals 
 Get Available Fields
 --------------------
 
-You can get a list of available query fields using the ``get_availableFields`` and passing the **Collection ID**.
+You can get a list of available query fields using the ``get_available_fields`` and passing the **Collection ID**.
 
-There are 3 ways to get the available fields for a Collection using the **\ *name_type*\ ** argument of the ``get_availableFields`` function:
+There are 3 ways to get the available fields for a Collection using the **\ *name_type*\ ** argument of the ``get_available_fields`` function:
 
-+-------------+-------------------------------------------+----------------------------------------------------------------------------+
-| Value       | Description                               | Results                                                                    |
-+=============+===========================================+============================================================================+
-| empty       | | Gets the raw field information from the | .. code-block:: python                                                     |
-|             | | RAPI.                                   |                                                                            |
-|             |                                           |     print(rapi.get_availableFields('RCMImageProducts'))                    |
-|             |                                           |         {'search': {                                                       |
-|             |                                           |             'Special Handling Required': {                                 |
-|             |                                           |                 'id': 'RCM.SPECIAL_HANDLING_REQUIRED',                     |
-|             |                                           |                 'datatype': 'String'},                                     |
-|             |                                           |             'Client Order Number': {                                       |
-|             |                                           |                 'id': 'ARCHIVE_IMAGE.CLIENT_ORDER_NUMBER',                 |
-|             |                                           |                 'datatype': 'String'},                                     |
-|             |                                           |             ...},                                                          |
-|             |                                           |         'results': {                                                       |
-|             |                                           |             'Buyer Id': {                                                  |
-|             |                                           |                 'id': 'ARCHIVE_IMAGE.AGENCY_BUYER',                        |
-|             |                                           |                 'datatype': 'Integer'},                                    |
-|             |                                           |             'Archive Visibility Start Date': {                             |
-|             |                                           |                 'id': 'ARCHIVE_IMAGE.ARCH_VISIBILITY_START',               |
-|             |                                           |                 'datatype': 'Date'},                                       |
-|             |                                           |             ...}                                                           |
-|             |                                           |         }                                                                  |
-+-------------+-------------------------------------------+----------------------------------------------------------------------------+
-| **id**      | Gets a list of field IDs.                 | .. code-block:: python                                                     |
-|             |                                           |                                                                            |
-|             |                                           |     print(rapi.get_availableFields('RCMImageProducts', name_type='id'))    |
-|             |                                           |         {'search': [                                                       |
-|             |                                           |             'RCM.SPECIAL_HANDLING_REQUIRED',                               |
-|             |                                           |             'ARCHIVE_IMAGE.CLIENT_ORDER_NUMBER',                           |
-|             |                                           |             ...],                                                          |
-|             |                                           |         'results': [                                                       |
-|             |                                           |             'ARCHIVE_IMAGE.AGENCY_BUYER',                                  |
-|             |                                           |             'ARCHIVE_IMAGE.ARCH_VISIBILITY_START',                         |
-|             |                                           |             ...]                                                           |
-|             |                                           |         }                                                                  |
-+-------------+-------------------------------------------+----------------------------------------------------------------------------+
-| **title**   | | Gets a list of field names (these are   | .. code-block:: python                                                     |
-|             | | used when performing a search using the |                                                                            |
-|             | | EODMSRAPI).                             |     print(rapi.get_availableFields('RCMImageProducts', name_type='title')) |
-|             |                                           |         {'search': [                                                       |
-|             |                                           |             'Special Handling Required',                                   |
-|             |                                           |             'Client Order Number',                                         |
-|             |                                           |             ...],                                                          |
-|             |                                           |         'results': [                                                       |
-|             |                                           |             'Buyer Id', 'Archive Visibility Start Date',                   |
-|             |                                           |             ...]                                                           |
-|             |                                           |         }                                                                  |
-+-------------+-------------------------------------------+----------------------------------------------------------------------------+
++-------------+-------------------------------------------+-----------------------------------------------------------------------------+
+| Value       | Description                               | Results                                                                     |
++=============+===========================================+=============================================================================+
+| empty       | | Gets the raw field information from the | .. code-block:: python                                                      |
+|             | | RAPI.                                   |                                                                             |
+|             |                                           |     print(rapi.get_available_fields('RCMImageProducts'))                    |
+|             |                                           |         {'search': {                                                        |
+|             |                                           |             'Special Handling Required': {                                  |
+|             |                                           |                 'id': 'RCM.SPECIAL_HANDLING_REQUIRED',                      |
+|             |                                           |                 'datatype': 'String'},                                      |
+|             |                                           |             'Client Order Number': {                                        |
+|             |                                           |                 'id': 'ARCHIVE_IMAGE.CLIENT_ORDER_NUMBER',                  |
+|             |                                           |                 'datatype': 'String'},                                      |
+|             |                                           |             ...},                                                           |
+|             |                                           |         'results': {                                                        |
+|             |                                           |             'Buyer Id': {                                                   |
+|             |                                           |                 'id': 'ARCHIVE_IMAGE.AGENCY_BUYER',                         |
+|             |                                           |                 'datatype': 'Integer'},                                     |
+|             |                                           |             'Archive Visibility Start Date': {                              |
+|             |                                           |                 'id': 'ARCHIVE_IMAGE.ARCH_VISIBILITY_START',                |
+|             |                                           |                 'datatype': 'Date'},                                        |
+|             |                                           |             ...}                                                            |
+|             |                                           |         }                                                                   |
++-------------+-------------------------------------------+-----------------------------------------------------------------------------+
+| **id**      | Gets a list of field IDs.                 | .. code-block:: python                                                      |
+|             |                                           |                                                                             |
+|             |                                           |     print(rapi.get_available_fields('RCMImageProducts', name_type='id'))    |
+|             |                                           |         {'search': [                                                        |
+|             |                                           |             'RCM.SPECIAL_HANDLING_REQUIRED',                                |
+|             |                                           |             'ARCHIVE_IMAGE.CLIENT_ORDER_NUMBER',                            |
+|             |                                           |             ...],                                                           |
+|             |                                           |         'results': [                                                        |
+|             |                                           |             'ARCHIVE_IMAGE.AGENCY_BUYER',                                   |
+|             |                                           |             'ARCHIVE_IMAGE.ARCH_VISIBILITY_START',                          |
+|             |                                           |             ...]                                                            |
+|             |                                           |         }                                                                   |
++-------------+-------------------------------------------+-----------------------------------------------------------------------------+
+| **title**   | | Gets a list of field names (these are   | .. code-block:: python                                                      |
+|             | | used when performing a search using the |                                                                             |
+|             | | EODMSRAPI).                             |     print(rapi.get_available_fields('RCMImageProducts', name_type='title')) |
+|             |                                           |         {'search': [                                                        |
+|             |                                           |             'Special Handling Required',                                    |
+|             |                                           |             'Client Order Number',                                          |
+|             |                                           |             ...],                                                           |
+|             |                                           |         'results': [                                                        |
+|             |                                           |             'Buyer Id', 'Archive Visibility Start Date',                    |
+|             |                                           |             ...]                                                            |
+|             |                                           |         }                                                                   |
++-------------+-------------------------------------------+-----------------------------------------------------------------------------+
 
 Get Available Field Choices
 ---------------------------
 
-Some fields have specific choices that the user can enter. These values are included in the ``get_availableFields`` *empty* results, however the function ``get_fieldChoices`` in the EODMSRAPI offers results easier to manipulate.
+Some fields have specific choices that the user can enter. These values are included in the ``get_available_fields`` *empty* results, however the function ``get_field_choices`` in the EODMSRAPI offers results easier to manipulate.
 
-The ``get_fieldChoices`` function requires a **Collection ID** and an optional **field** name or ID. If no field is specified, all fields and choices for the specified Collection will be returned.
+The ``get_field_choices`` function requires a **Collection ID** and an optional **field** name or ID. If no field is specified, all fields and choices for the specified Collection will be returned.
 
 Example of choices for the Polarization field in RCM:
 
 .. code-block:: python
 
-   >>> rapi.get_fieldChoices('RCMImageProducts', 'Polarization')
+   >>> rapi.get_field_choices('RCMImageProducts', 'Polarization')
    ['CH CV', 'HH', 'HH HV', 'HH HV VH VV', 'HH VV', 'HV', 'VH', 'VH VV', 'VV']
 
 Result Fields
@@ -207,12 +207,12 @@ The next value to set is the **result fields**. The raw JSON results from the RA
    Metadata
    RCM.DOWNLINK_SEGMENT_ID
 
-If you want more fields returned, you can create a list and add Field IDs (found in the 'results' entry of the ``get_availableFields`` method results, in bold below) of fields you'd like included in the results JSON.
+If you want more fields returned, you can create a list and add Field IDs (found in the 'results' entry of the ``get_available_fields`` method results, in bold below) of fields you'd like included in the results JSON.
 
 
 .. code-block:: python
 
-	>>> print(rapi.get_availableFields('RCMImageProducts'))
+	>>> print(rapi.get_available_fields('RCMImageProducts'))
        {'search': 
            {
                [...]
@@ -241,7 +241,7 @@ Now submit the search, in this example, setting the **Collection ID** to 'RCMIma
 
 .. code-block:: python
 
-   >>> rapi.search("RCMImageProducts", filters=filters, features=feats, dates=dates, resultFields=result_fields, maxResults=100)
+   >>> rapi.search("RCMImageProducts", filters=filters, features=feats, dates=dates, result_fields=result_fields, maxResults=100)
 
 Get Results
 -----------
@@ -257,7 +257,7 @@ Before getting the results, set the field type to return:
 
 .. code-block:: python
 
-   >>> rapi.set_fieldConvention('upper')
+   >>> rapi.set_field_convention('upper')
 
 .. note::
     Changing the field name convention does not apply when using the 'raw' parameter for the ``get_results`` method.
@@ -537,7 +537,7 @@ Full Search Code Example
    rapi.search("RCMImageProducts", filters, feats, dates, result_fields, 100)
 
    # Get results
-   rapi.set_fieldConvention('upper')
+   rapi.set_field_convention('upper')
    res = rapi.get_results('full')
 
    rapi.print_results(res)
