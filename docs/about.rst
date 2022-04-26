@@ -10,14 +10,14 @@ Some code in this package is based off the `EODMS API Client <https://pypi.org/p
 Contact
 -------
 
-If you have any questions or require support, please contact the EODMS Support Team at nrcan.eodms-sgdot.rncan@canada.ca.
+If you have any questions or require support, please contact the EODMS Support Team at eodms-sgdot@nrcan-rncan.gc.ca.
 
 License
 -------
 
 MIT License
 
-Copyright (c) 2021 Her Majesty the Queen in Right of Canada, as 
+Copyright (c) 2020-2022 Her Majesty the Queen in Right of Canada, as 
 represented by the President of the Treasury Board
 
 Permission is hereby granted, free of charge, to any person obtaining a 
