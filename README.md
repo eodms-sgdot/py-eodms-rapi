@@ -66,7 +66,7 @@ Some code in this package is based off the [EODMS API Client](https://pypi.org/p
 
 ## Contact
 
-If you have any questions or require support, please contact the EODMS Support Team at nrcan.eodms-sgdot.rncan@canada.ca.
+If you have any questions or require support, please contact the EODMS Support Team at eodms-sgdot@nrcan-rncan.gc.ca.
 
 ## License
 
