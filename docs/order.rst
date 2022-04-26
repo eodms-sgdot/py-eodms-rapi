@@ -45,7 +45,7 @@ The **parameters** can be a list of parameter dictionaries which will be applied
 
 Each item in the ``parameters`` list should be the same as how it appears in the POST request (ex: ``{"packagingFormat": "TAR"}``\ )
 
-You can get a list of available parameters by calling the ``get_orderParameters`` method of the EODMSRAPI, submitting arguments **collection** and **recordId**. The **parameters** is optional.
+You can get a list of available parameters by calling the ``get_order_parameters`` method of the EODMSRAPI, submitting arguments **collection** and **recordId**. The **parameters** is optional.
 
 Destinations
 ------------
