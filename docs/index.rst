@@ -56,7 +56,7 @@ An example to search, order and download RCM images:
    rapi.search("RCMImageProducts", filters, feat, dates, result_fields, 2)
 
    # Get results
-   rapi.set_fieldConvention('upper')
+   rapi.set_field_convention('upper')
    res = rapi.get_results('full')
 
    # Now order the images
