@@ -556,7 +556,7 @@ class EODMSRAPI:
 
         # If the input is a string, convert it to a
         #   xml.etree.ElementTree.Element
-        print(f"in_str: {in_str}")
+        # print(f"in_str: {in_str}")
         if isinstance(in_str, str):
             root = ElementTree.fromstring(in_str)
         else:
@@ -2388,8 +2388,7 @@ class EODMSRAPI:
         msg = "Creating destination..."
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
 
-        dest_info = {'type': dest_type,
-                     'name': dest_name}
+        dest_info = {'type': dest_type, 'name': dest_name}
 
         if dest_type.lower() == 'ftp':
             hostname = kwargs.get('hostname')
