@@ -484,10 +484,12 @@ class EODMSRAPI:
         dates = []
         for i in items:
 
-            if 'dateRapiOrdered' in i.keys():
-                rapi_str = i['dateRapiOrdered']
-            else:
-                rapi_str = i['dateSubmitted']
+            rapi_str = i.get('dateRapiOrdered')
+            if rapi_str is None:
+                rapi_str = i.get('dateSubmitted')
+
+            if rapi_str is None:
+                return None
 
             rapi_date = dateutil.parser.parse(rapi_str)
 
@@ -2018,9 +2020,22 @@ class EODMSRAPI:
             self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
             return None
 
-        start, end = self._get_date_range(records)
+        if not all("orderId" in keys for keys in records):
+            msg = "Cannot get orders as no orderId is provided in the " \
+                  "results."
+            self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+            return None
 
-        orders = self.get_orders(dtstart=start, dtend=end)
+        # dates = self._get_date_range(records)
+        #
+        # if dates is None:
+        #     msg = "Cannot get orders as no order dates are available."
+        #     self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+        #     return None
+        #
+        # start, end = dates
+
+        orders = self.get_orders(records)
 
         msg = "Getting a list of order items..."
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
