@@ -83,7 +83,7 @@ Contents
 	examples
 	
 .. toctree::
-	:maxdepth: 3
+	:maxdepth: 4
 	:caption: API
    
 	eodms_rapi.rst
