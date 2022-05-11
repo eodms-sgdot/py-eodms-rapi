@@ -73,7 +73,7 @@ Contents
 --------
 
 .. toctree::
-	:maxdepth: 1
+	:maxdepth: 3
 	:caption: User Guide
    
 	initialization
@@ -83,7 +83,7 @@ Contents
 	examples
 	
 .. toctree::
-	:maxdepth: 1
+	:maxdepth: 2
 	:caption: API
    
 	api/eodms_rapi.rst
