@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='py-eodms-rapi',
-    version='1.4.1', 
+    version='1.4.3', 
     author='Kevin Ballantyne (Natural Resources Canada)',
     author_email='kevin.ballantyne@nrcan-rncan.gc.ca',
     packages=find_packages(),

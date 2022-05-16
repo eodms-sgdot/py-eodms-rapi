@@ -115,6 +115,9 @@ class QueryError:
 
 
 class EODMSRAPI:
+    """
+    The EODMSRAPI Class containing the methods for the eodms_rapi
+    """
 
     def __init__(self, username, password):
         """
@@ -348,8 +351,8 @@ class EODMSRAPI:
         :param field: The field name.
         :type  field: str
 
-        :return: The field name with the proper naming convention
-                ('words', 'upper' or 'camel').
+        :return: The field name with the proper naming convention ('words',
+        'upper' or 'camel').
         :rtype: str
         """
 
@@ -440,8 +443,8 @@ class EODMSRAPI:
         :param timeout: The time in seconds to wait before timing out.
         :type  timeout: float
 
-        :return: Dictionary containing the keys and geometry metadata for
-                    the given image.
+        :return: Dictionary containing the keys and geometry metadata for the
+        given image.
         :rtype: dict
         """
 
@@ -1384,9 +1387,9 @@ class EODMSRAPI:
 
             - ``words``: The label with spaces and words will be returned.
             - ``camel`` (default): The format will be lower camel case like
-                'camelCase'.
+            'camelCase'.
             - ``upper``: The format will be all uppercase with
-                underscore for spaces.
+            underscore for spaces.
 
         :type  convention: str
 
@@ -1408,8 +1411,8 @@ class EODMSRAPI:
 
     def download_image(self, url, dest_fn, fsize):
         """
-        Given a list of remote and local items, download the remote data
-            if it is not already found locally.
+        Given a list of remote and local items, download the remote data if
+        it is not already found locally.
 
         (Adapted from the eodms-api-client (
         https://pypi.org/project/eodms-api-client/) developed by Mike Brady)
@@ -1720,8 +1723,8 @@ class EODMSRAPI:
 
     def get_field_choices(self, collection, field=None):
         """
-        Gets the avaiable choices for a specified field. If no choices exist,
-            then the data type is returned.
+        Gets the available choices for a specified field. If no choices exist,
+        then the data type is returned.
 
         :param collection: The collection containing the field.
         :type  collection: str
@@ -2237,42 +2240,40 @@ class EODMSRAPI:
         :param dest_name: The destination name
         :type  dest_name: str
         :param kwargs:
-            Options for FTP:
-                hostname: The fully qualified domain name of the target FTP
-                    server.
-                username: The username used to log in to the target FTP server.
-                password: The password used to log in to the target FTP server.
-                string_val: A readable string representation of the whole
-                    object, typically "ftp://{user}@{host}/{path}"
-                path: After logging in to the FTP server, change directory
-                    to this path (optional; default is the root directory)
-                can_edit: "true" if the currently connected user is allowed
-                    to modify the properties of this Order Destination object
-                    (server to client only)
-            Options for Physical:
-                customerName: The name of the customer who will receive the
-                    order (required).
-                contactEmail: An email address that can be used to contact
-                    the customer if necessary (required).
-                organization: The names of any organization and organizational
-                    units necessary to identify the delivery location
-                    (optional).
-                phone: A phone number that can be used to contact the customer
-                    if necessary (optional).
-                addrs: A list of physical delivery addresses (1 address is
-                    required, a maximum of 3).
-                city: The city or other community of the physical delivery
-                    address (required).
-                stateProv: The name or code identifying the state or other
-                    administrative region required for the physical delivery
-                    address (required for most countries).
-                country: The name of the country to which the product is to
-                    be delivered (required).
-                postalCode: Any code that is necessary for the postal system
-                    to successfully deliver the product (required for many
-                    countries).
-                classification: This is the security classification of the
-                    physical address (optional).
+        Options for FTP:
+            *hostname*: The fully qualified domain name of the target FTP
+            server.
+            *username*: The username used to log in to the target FTP server.
+            *password*: The password used to log in to the target FTP server.
+            *string_val*: A readable string representation of the whole object,
+            typically "ftp://{user}@{host}/{path}"
+            *path*: After logging in to the FTP server, change directory to
+            this path (optional; default is the root directory)
+            *can_edit*: "true" if the currently connected user is allowed
+            to modify the properties of this Order Destination object
+            (server to client only)
+        Options for Physical:
+            *customerName*: The name of the customer who will receive the
+            order (required).
+            *contactEmail*: An email address that can be used to contact
+            the customer if necessary (required).
+            *organization*: The names of any organization and organizational
+            units necessary to identify the delivery location (optional).
+            *phone*: A phone number that can be used to contact the customer
+            if necessary (optional).
+            *addrs*: A list of physical delivery addresses (1 address is
+            required, a maximum of 3).
+            *city*: The city or other community of the physical delivery
+            address (required).
+            *stateProv*: The name or code identifying the state or other
+            administrative region required for the physical delivery
+            address (required for most countries).
+            *country*: The name of the country to which the product is to
+            be delivered (required).
+            *postalCode*: Any code that is necessary for the postal system
+            to successfully deliver the product (required for many countries).
+            *classification*: This is the security classification of the
+            physical address (optional).
         """
 
         msg = "Creating destination..."
@@ -2362,42 +2363,40 @@ class EODMSRAPI:
         :param dest_name: The destination name
         :type  dest_name: str
         :param kwargs:
-            Options for FTP:
-                hostname: The fully qualified domain name of the target FTP
-                    server.
-                username: The username used to log in to the target FTP server.
-                password: The password used to log in to the target FTP server.
-                string_val: A readable string representation of the whole
-                    object, typically "ftp://{user}@{host}/{path}"
-                path: After logging in to the FTP server, change directory
-                    to this path (optional; default is the root directory)
-                can_edit: "true" if the currently connected user is allowed
-                    to modify the properties of this Order Destination object
-                    (server to client only)
-            Options for Physical:
-                customerName: The name of the customer who will receive the
-                    order (required).
-                contactEmail: An email address that can be used to contact
-                    the customer if necessary (required).
-                organization: The names of any organization and organizational
-                    units necessary to identify the delivery location
-                    (optional).
-                phone: A phone number that can be used to contact the customer
-                    if necessary (optional).
-                addrs: A list of physical delivery addresses (1 address is
-                    required, a maximum of 3).
-                city: The city or other community of the physical delivery
-                    address (required).
-                stateProv: The name or code identifying the state or other
-                    administrative region required for the physical delivery
-                    address (required for most countries).
-                country: The name of the country to which the product is to
-                    be delivered (required).
-                postalCode: Any code that is necessary for the postal system
-                    to successfully deliver the product (required for many
-                    countries).
-                classification: This is the security classification of the
-                    physical address (optional).
+        Options for FTP:
+            *hostname*: The fully qualified domain name of the target FTP
+            server.
+            *username*: The username used to log in to the target FTP server.
+            *password*: The password used to log in to the target FTP server.
+            *string_val*: A readable string representation of the whole object,
+            typically "ftp://{user}@{host}/{path}"
+            *path*: After logging in to the FTP server, change directory to
+            this path (optional; default is the root directory)
+            *can_edit*: "true" if the currently connected user is allowed
+            to modify the properties of this Order Destination object
+            (server to client only)
+        Options for Physical:
+            *customerName*: The name of the customer who will receive the
+            order (required).
+            *contactEmail*: An email address that can be used to contact
+            the customer if necessary (required).
+            *organization*: The names of any organization and organizational
+            units necessary to identify the delivery location (optional).
+            *phone*: A phone number that can be used to contact the customer
+            if necessary (optional).
+            *addrs*: A list of physical delivery addresses (1 address is
+            required, a maximum of 3).
+            *city*: The city or other community of the physical delivery
+            address (required).
+            *stateProv*: The name or code identifying the state or other
+            administrative region required for the physical delivery
+            address (required for most countries).
+            *country*: The name of the country to which the product is to
+            be delivered (required).
+            *postalCode*: Any code that is necessary for the postal system
+            to successfully deliver the product (required for many countries).
+            *classification*: This is the security classification of the
+            physical address (optional).
         """
 
         msg = "Creating destination..."
@@ -2593,7 +2592,7 @@ class EODMSRAPI:
             following format:
 
                 ``{"|filter title|": ("|operator|", ["value1", "value2", ...]),
-                    ...}``
+                ...}``
 
                 Example:
 
@@ -2902,9 +2901,9 @@ class EODMSRAPI:
 
             # Set the priority
             if priority is not None and not priority.lower() == 'medium':
-                item['priority'] = priority
+                item['priority'] = priority.title()
             if 'priority' in r.keys():
-                item['priority'] = r[self.get_conv('priority')]
+                item['priority'] = r[self.get_conv('priority')].title()
 
             # Set parameters
             if parameters is not None:

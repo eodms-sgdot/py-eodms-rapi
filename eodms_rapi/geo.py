@@ -67,7 +67,7 @@ except ImportError:
 class EODMSGeo:
     """
     The Geo class contains all the methods and functions used to perform
-        geographic processes mainly using OGR.
+    geographic processes mainly using OGR.
     """
 
     def __init__(self, eodmsrapi=None):
@@ -267,7 +267,7 @@ class EODMSGeo:
         :param in_src: The in_src can either be:
                     
             - a filename (ESRI Shapefile, KML, GML or GeoJSON) of multiple
-                features
+            features
             - a WKT format string of a single feature
             - the 'geometry' entry from a GeoJSON Feature
             - a list of coordinates (ex: ``[(x1, y1), (x2, y2), ...]``)
@@ -363,7 +363,7 @@ class EODMSGeo:
     def convert_image_geom(self, coords, output='array'):
         """
         Converts a list of coordinates from the RAPI to a polygon geometry,
-            array of points or as WKT.
+        array of points or as WKT.
         
         :param coords: A list of coordinates from the RAPI results.
         :type  coords: list
