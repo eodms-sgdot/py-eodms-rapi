@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'py-eodms-rapi'
-copyright = '2021, Kevin Ballantyne (Natural Resources Canada)'
+copyright = '2022, Kevin Ballantyne (Natural Resources Canada)'
 author = 'Kevin Ballantyne (Natural Resources Canada)'
 
 # The full version, including alpha/beta/rc tags

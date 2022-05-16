@@ -1,6 +1,6 @@
-
+=======================================
 EODMS RAPI Python Package Documentation
-==================================================
+=======================================
 
 EODMS RAPI Client is a Python3 package used to access the REST API service provided by the `Earth Observation Data Management System (EODMS) <https://www.eodms-sgdot.nrcan-rncan.gc.ca/index-en.html>`_ from Natural Resources Canada.
 
@@ -73,7 +73,7 @@ Contents
 --------
 
 .. toctree::
-	:maxdepth: 2
+	:maxdepth: 3
 	:caption: User Guide
    
 	initialization
@@ -83,10 +83,10 @@ Contents
 	examples
 	
 .. toctree::
-	:maxdepth: 2
+	:maxdepth: 4
 	:caption: API
    
-	api/eodms_rapi.rst
+	eodms_rapi.rst
 
 Support
 -------
