@@ -1916,7 +1916,7 @@ class EODMSRAPI:
             return res
 
     def get_orders(self, order_res=None, dtstart=None, dtend=None,
-                   max_orders=100, out_format='json'):
+                   max_orders=100, status=None, out_format='json'):
         """
         Sends a query to retrieve orders from the RAPI.
 
@@ -1929,6 +1929,8 @@ class EODMSRAPI:
         :type  dtend: datetime.datetime
         :param max_orders: The maximum number of orders to retrieve.
         :type  max_orders: int
+        :param status: The status of the orders to retrieve.
+        :type  status: str
         :param out_format: The format of the results.
         :type  out_format: str
 
@@ -1983,6 +1985,8 @@ class EODMSRAPI:
             params['dtstart'] = dtstart.strftime(tm_frm)
             params['dtend'] = dtend.strftime(tm_frm)
         params['maxOrders'] = max_orders
+        if status is not None:
+            params['status'] = status.upper()
         param_str = urlencode(params)
 
         query_url = f"{self.rapi_root}/order?{param_str}&format={out_format}"
@@ -2003,7 +2007,11 @@ class EODMSRAPI:
             return None
 
         if 'items' in res.keys():
-            return res['items']
+            res = res['items']
+
+        if status is not None:
+            status_res = [r for r in res if r.get('status') == status.upper()]
+            return status_res
         else:
             return res
 
