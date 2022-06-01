@@ -13,7 +13,7 @@ The package is installed using the pip command
 
 .. code-block:: bash
 
-   pip install py-eodms-rapi
+   pip install py-eodms-rapi -U
 
 The installation will also add the following packages:
 
