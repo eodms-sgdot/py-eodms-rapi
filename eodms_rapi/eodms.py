@@ -24,6 +24,8 @@
 # 
 ##############################################################################
 
+
+
 import os
 # import sys
 import requests
@@ -133,6 +135,7 @@ class EODMSRAPI:
         self.collection = None
         self._session = requests.Session()
         self._session.auth = (username, password)
+        self._email = 'eodms-sgdot@nrcan-rncan.gc.ca'
 
         self.rapi_root = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi"
 
@@ -158,6 +161,8 @@ class EODMSRAPI:
         self._rapi_url = None
         self.start = datetime.datetime.now()
         self.logger = logger
+        self.err_occurred = False
+        self.auth_err = False
 
         self.geo = EODMSGeo(self)
 
@@ -244,7 +249,7 @@ class EODMSRAPI:
 
         return False
 
-    def _check_auth(self, in_err):
+    def _check_auth(self, in_err=None):
         """
         Checks if the error results from the RAPI are unauthorized.
 
@@ -255,15 +260,29 @@ class EODMSRAPI:
         :rtype: boolean
         """
 
+        if in_err is None:
+            query_url = f"{self.rapi_root}/collections?format=json"
+            coll_res = self._submit(query_url, timeout=20.0)
+
+            # print(f"coll_res: {coll_res}")
+            if isinstance(coll_res, QueryError):
+                in_err = coll_res
+            else:
+                return False
+
         err_msg = in_err.get_msgs(True)
         if err_msg.find('401 - Unauthorized') > -1 or \
-                (err_msg.find('HTTP Error: 401 Client Error') > -1 and
-                 err_msg.find('Unauthorized') > -1):
+                err_msg.find('HTTP Error: 401 Client Error') > -1 or \
+                err_msg.find('Unauthorized') > -1:
             # Inform the user if the error was caused by an authentication
             #   issue.
             err_msg = "An authentication error has occurred while " \
-                      "trying to access the EODMS RAPI. Please try " \
-                      "again with your EODMS username and password."
+                      "trying to access the EODMS RAPI. Please ensure " \
+                      "your account login is in good standing on the actual " \
+                      "website, https://www.eodms-sgdot.nrcan-rncan.gc.ca/" \
+                      "index-en.html."
+            self.err_occurred = True
+            self.auth_err = True
             self.log_msg(err_msg, 'error')
             return True
 
@@ -451,7 +470,7 @@ class EODMSRAPI:
         record_url = f"{record['thisRecordUrl']}?format=json"
         r = self._submit(record_url, timeout=timeout, as_json=False)
 
-        if r is None:
+        if r is None or self.err_occurred:
             return None
 
         if isinstance(r, QueryError):
@@ -522,7 +541,7 @@ class EODMSRAPI:
         if not self.rapi_collections:
             self.get_collections()
 
-        if self.rapi_collections is None:
+        if self.rapi_collections is None or self.err_occurred:
             return None
 
         fields = self.rapi_collections[self.collection]['fields']['results']. \
@@ -644,7 +663,7 @@ class EODMSRAPI:
         if not self.rapi_collections:
             self.get_collections()
 
-        if self.rapi_collections is None:
+        if self.rapi_collections is None or self.err_occurred:
             return None
 
         for k, v in self.rapi_collections[coll_id]['fields']['search'].items():
@@ -890,8 +909,14 @@ class EODMSRAPI:
 
             field_id = self._get_field_id('Acquisition Start Date')
 
+            if self.err_occurred:
+                return None
+
             if field_id is None:
                 field_id = self._get_field_id('Start Date')
+
+                if self.err_occurred:
+                    return None
 
             date_queries = []
             for rng in self.dates:
@@ -943,6 +968,9 @@ class EODMSRAPI:
                 else:
                     field_id = self._get_field_id('Footprint')
 
+                    if self.err_occurred:
+                        return None
+
                     self.geoms = [self.geoms] \
                         if not isinstance(self.geoms, list) else self.geoms
 
@@ -960,6 +988,9 @@ class EODMSRAPI:
             for field, values in filters.items():
 
                 field_id = self._get_field_id(field)
+
+                if self.err_occurred:
+                    return None
 
                 if field_id is None:
                     msg = f"No available field named '{field}'."
@@ -1060,48 +1091,69 @@ class EODMSRAPI:
         self.log_msg(msg)
 
         logger.debug(f"RAPI Query URL: {self._rapi_url}")
-        r = self._submit(self._rapi_url, as_json=False)
+        r = self._submit(self._rapi_url)
 
-        if r is None:
+        if r is None or self.err_occurred:
             return None
 
         if isinstance(r, QueryError):
             err_msg = r.get_msgs(True)
-            if err_msg.find('404 Client Error') > -1 or \
-                    err_msg.find('400 Client Error') > -1 or \
-                    err_msg.find('500 Server Error'):
+
+            out_msg = self._check_http(err_msg)
+            if out_msg is not None:
+                self.log_msg(out_msg, 'warning')
                 self.results = r
                 return self.results
+
             msg = 'Retrying in 3 seconds...'
             self.log_msg(msg, 'warning')
             time.sleep(3)
             return self._submit_search()
 
-        if r.ok:
+        if isinstance(r, requests.Response):
             data = r.json()
+        else:
+            data = r
 
-            tot_results = int(data['totalResults'])
-            if tot_results == 0:
-                return self.results
-            elif tot_results < self.limit_interval:
-                self.results += data['results']
-                return self.results
-
+        tot_results = int(data['totalResults'])
+        if tot_results == 0:
+            return self.results
+        elif tot_results < self.limit_interval:
             self.results += data['results']
-            first_result = len(self.results) + 1
-            if self._rapi_url.find('&firstResult') > -1:
-                old_first_result = int(re.search(
-                    r'&firstResult=([\d*]+)',
-                    self._rapi_url
-                ).group(1))
-                self._rapi_url = self._rapi_url.replace(
-                    '&firstResult=%d' % old_first_result,
-                    '&firstResult=%d' % first_result
-                )
-            else:
-                self._rapi_url += f'&firstResult={first_result}'
+            return self.results
 
-            return self._submit_search()
+        self.results += data['results']
+        first_result = len(self.results) + 1
+        if self._rapi_url.find('&firstResult') > -1:
+            old_first_result = int(re.search(
+                r'&firstResult=([\d*]+)',
+                self._rapi_url
+            ).group(1))
+            self._rapi_url = self._rapi_url.replace(
+                '&firstResult=%d' % old_first_result,
+                '&firstResult=%d' % first_result
+            )
+        else:
+            self._rapi_url += f'&firstResult={first_result}'
+
+        return self._submit_search()
+
+    def _check_http(self, err_msg):
+        if err_msg.find('404 Client Error') > -1 or \
+            err_msg.find('404 for url') > -1:
+            msg = f"404 Client Error: Could not find {self._rapi_url}."
+        elif err_msg.find('400 Client Error') > -1:
+            msg = f"400 Client Error: A Bad Request occurred while trying to " \
+                  f"reach {self._rapi_url}"
+        elif err_msg.find('500 Server Error') > -1:
+            msg = f"500 Server Error: An internal server error has occurred " \
+                  f"while to access {self._rapi_url}"
+        elif err_msg.find('401 Client Error') > -1:
+            return err_msg
+        else:
+            return None
+
+        return msg
 
     def _submit(self, query_url, request_type='get', post_data=None,
                 timeout=None, record_name=None, quiet=True, as_json=True):
@@ -1177,33 +1229,33 @@ class EODMSRAPI:
             except requests.exceptions.HTTPError as errh:
                 msg = f"HTTP Error: {errh}"
 
-                if msg.find('Unauthorized') > -1 \
-                        or msg.find('404 Client Error: '
-                                    'Not Found for url') > -1 \
-                        or msg.find('401') > -1:
-                    err = msg
+                out_msg = self._check_http(msg)
+
+                if out_msg is not None:
+                    err = out_msg
                     query_err = QueryError(err)
 
                     if self._check_auth(query_err):
-                        return err
+                        return query_err
 
                     return query_err
-                elif msg.find('400 Client Error') > -1:
-                    err = msg
-                    query_err = QueryError(err)
 
-                    if self._check_auth(query_err):
-                        return err
-
-                    return query_err
-                elif msg.find('500 Server Error') > -1:
-                    err = msg
-                    query_err = QueryError(err)
-
-                    if self._check_auth(query_err):
-                        return err
-
-                    return query_err
+                # elif msg.find('400 Client Error') > -1:
+                #     query_err = self._get_exception(res)
+                #
+                #     if self._check_auth(query_err):
+                #         return err
+                #
+                #     return query_err
+                # elif msg.find('500 Server Error') > -1:
+                #     query_err = self._get_exception(res)
+                #     # err = msg
+                #     # query_err = QueryError(err)
+                #
+                #     if self._check_auth(query_err):
+                #         return err
+                #
+                #     return query_err
 
                 if attempt < self.attempts:
                     msg = f"{msg}; attempting to connect again..."
@@ -1238,13 +1290,16 @@ class EODMSRAPI:
                 attempt += 1
             except (requests.exceptions.ConnectionError,
                     requests.exceptions.RequestException) as req_err:
+                print(f"res: {res}")
                 msg = f"{req_err.__class__.__name__} Error: {req_err}"
+                self.err_occurred = True
                 self.log_msg(msg, 'error')
                 # attempt = self.attempts
                 return None
             except KeyboardInterrupt:
                 msg = "Process ended by user."
                 self.log_msg(msg, out_indent='\n')
+                self.err_occurred = True
                 return None
             except Exception:
                 msg = f"Unexpected error: {traceback.format_exc()}"
@@ -1281,6 +1336,15 @@ class EODMSRAPI:
 
         if res.text == '':
             return None
+
+        if res.text.find('BRB!') > -1:
+            msg = f"There was a problem while attempting to access the " \
+                  f"EODMS RAPI server. If the problem persists, please " \
+                  f"contact the EODMS team at {self._email}."
+            self.log_msg(msg, 'error')
+            self.err_occurred = True
+            query_err = QueryError(msg)
+            return query_err
 
         if as_json:
             return res.json()
@@ -1339,7 +1403,7 @@ class EODMSRAPI:
         if not self.rapi_collections:
             self.get_collections()
 
-        if self.rapi_collections is None:
+        if self.rapi_collections is None or self.err_occurred:
             return None
 
         for k, v in self.rapi_collections.items():
@@ -1442,6 +1506,9 @@ class EODMSRAPI:
                 self.log_msg(msg, 'warning')
                 os.remove(dest_fn)
 
+        if self._check_auth():
+            return None
+
         # Use streamed download so we can wrap nicely with tqdm
         with self._session.get(url, stream=True, verify=self.verify) as stream:
             with open(dest_fn, 'wb') as pipe:
@@ -1541,6 +1608,9 @@ class EODMSRAPI:
             # max_orders = max_downloads + int((max_downloads / 4))
             # orders = self.get_orders(max_orders=max_orders)
             orders = self.get_orders(unique_items)
+
+            if self.err_occurred:
+                return None
 
             if orders is None:
                 msg = "An error occurred while getting a list of orders. " \
@@ -1679,7 +1749,7 @@ class EODMSRAPI:
 
         coll_res = self._submit(query_url, timeout=20.0)
 
-        if coll_res is None:
+        if coll_res is None or self.err_occurred:
             return None
 
         # If an error occurred
@@ -1737,6 +1807,9 @@ class EODMSRAPI:
         """
 
         fields = self.get_available_fields(collection)
+
+        if self.err_occurred:
+            return None
 
         all_fields = {}
         for f, v in fields['search'].items():
@@ -1808,15 +1881,16 @@ class EODMSRAPI:
         # Send the query URL
         coll_res = self._submit(query_url, timeout=20.0)
 
-        if coll_res is None:
+        if coll_res is None or self.err_occurred:
             return None
 
         # If an error occurred
         if isinstance(coll_res, QueryError):
             msg = f"Could not get a list of collections due to " \
                   f"'{coll_res.get_msgs(True)}'."
+            self.err_occurred = True
             self.log_msg(msg, 'error')
-            return QueryError
+            return coll_res
 
         # Create the collections dictionary
         for coll in coll_res:
@@ -1835,6 +1909,8 @@ class EODMSRAPI:
                     elif coll_id == 'PlanetScope':
                         aliases = ['planet']
                     fields = self.get_available_fields(coll_id, 'all')
+                    if self.err_occurred:
+                        return None
                     if fields is None:
                         continue
                     self.rapi_collections[c['collectionId']] = {
@@ -1878,7 +1954,7 @@ class EODMSRAPI:
 
         res = self._submit(query, timeout=self.timeout_order)
 
-        if res is None:
+        if res is None or self.err_occurred:
             return None
 
         return res
@@ -1900,6 +1976,9 @@ class EODMSRAPI:
 
         # Send the query to the RAPI
         res = self._submit(query_url, timeout=self.timeout_query, quiet=False)
+
+        if self.err_occurred:
+            return None
 
         if res is None or isinstance(res, QueryError):
             if isinstance(res, QueryError):
@@ -1963,6 +2042,9 @@ class EODMSRAPI:
                 res = self._submit(query_url, timeout=self.timeout_query,
                                    quiet=False)
 
+                if self.err_occurred:
+                    return None
+
                 if res is None or isinstance(res, QueryError):
                     if isinstance(res, QueryError):
                         msg = f"Order submission was unsuccessful due to: " \
@@ -1996,6 +2078,9 @@ class EODMSRAPI:
         # Send the query to the RAPI
         res = self._submit(query_url, timeout=self.timeout_query, quiet=False)
 
+        if self.err_occurred:
+            return None
+
         if res is None or isinstance(res, QueryError):
             if isinstance(res, QueryError):
                 msg = f"Order submission was unsuccessful due to: " \
@@ -2026,6 +2111,10 @@ class EODMSRAPI:
         :rtype:  list
         """
 
+        if isinstance(records, dict):
+            if 'items' in records.keys():
+                records = records['items']
+
         if records is None or len(records) == 0:
             msg = "Cannot get orders as no image items provided."
             self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
@@ -2047,6 +2136,9 @@ class EODMSRAPI:
         # start, end = dates
 
         orders = self.get_orders(records)
+
+        if self.err_occurred:
+            return None
 
         msg = "Getting a list of order items..."
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
@@ -2106,6 +2198,9 @@ class EODMSRAPI:
         # Get the proper Collection ID for the RAPI
         collection = self._get_full_coll_id(collection)
 
+        if self.err_occurred:
+            return None
+
         msg = f"\n\n\tGetting order parameters for image in Collection " \
               f"{collection} with Record ID {record_id}..."
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
@@ -2128,6 +2223,7 @@ class EODMSRAPI:
         except KeyboardInterrupt:
             msg = "Process ended by user."
             self.log_msg(msg, out_indent='\n')
+            self.err_occurred = True
             print()
             return None
 
@@ -2174,6 +2270,9 @@ class EODMSRAPI:
 
         self.results = self._submit(self._rapi_url)
 
+        if self.err_occurred:
+            return None
+
         if isinstance(self.results, QueryError):
             msg = self.results.get_msgs()
             self.log_msg(msg, 'warning')
@@ -2210,6 +2309,9 @@ class EODMSRAPI:
         # Send the JSON request to the RAPI
         cancel_res = self._submit(order_url, 'delete')
 
+        if self.err_occurred:
+            return None
+
         # try:
         #     cancel_res = self._session.delete(url=order_url)
         #     cancel_res.raise_for_status()
@@ -2224,6 +2326,7 @@ class EODMSRAPI:
         # except KeyboardInterrupt:
         #     msg = "Process ended by user."
         #     self.log_msg(msg, out_indent='\n')
+        #     self.err_occurred = True
         #     print()
         #     return None
 
@@ -2338,6 +2441,16 @@ class EODMSRAPI:
         dest_json = json.dumps(dest_info)
         dest_res = self._submit(self._rapi_url, 'post', dest_json)
 
+        if self.err_occurred:
+            return None
+
+        if isinstance(dest_res, QueryError):
+            msg = f"Could not create destination due to " \
+                  f"'{dest_res.get_msgs(True)}'."
+            self.err_occurred = True
+            self.log_msg(msg, 'error')
+            return None
+
         return dest_res
 
     def delete_destination(self, dest_type, dest_name):
@@ -2359,6 +2472,16 @@ class EODMSRAPI:
 
         # Delete the given destination
         dest_res = self._submit(dest_url, 'delete')
+
+        if self.err_occurred:
+            return None
+
+        if isinstance(dest_res, QueryError):
+            msg = f"Could not delete destination due to " \
+                  f"'{dest_res.get_msgs(True)}'."
+            self.err_occurred = True
+            self.log_msg(msg, 'error')
+            return None
 
         return dest_res
 
@@ -2462,6 +2585,16 @@ class EODMSRAPI:
         dest_json = json.dumps(dest_info)
         dest_res = self._submit(dest_url, 'put', dest_json)
 
+        if self.err_occurred:
+            return None
+
+        if isinstance(dest_res, QueryError):
+            msg = f"Could not update destination due to " \
+                  f"'{dest_res.get_msgs(True)}'."
+            self.err_occurred = True
+            self.log_msg(msg, 'error')
+            return None
+
         return dest_res
 
     def retrieve_destinations(self, collection=None, record_id=None):
@@ -2485,6 +2618,9 @@ class EODMSRAPI:
             self._rapi_url = f"{self.rapi_root}/order/destinations"
 
         self.results = self._submit(self._rapi_url)
+
+        if self.err_occurred:
+            return None
 
         if isinstance(self.results, QueryError):
             msg = self.results.get_msgs()
@@ -2543,31 +2679,40 @@ class EODMSRAPI:
             result_fields = []
 
             footprint_id = self._get_field_id('Footprint', self.collection)
+            if self.err_occurred:
+                return None
             if footprint_id is not None:
                 result_fields.append(footprint_id)
 
             pixspace_id = self._get_field_id('Spatial Resolution',
                                              self.collection)
+            if self.err_occurred:
+                return None
             if pixspace_id is not None:
                 result_fields.append(pixspace_id)
         else:
             result_fields = result_field.split(',')
 
             footprint_id = self._get_field_id('Footprint', self.collection)
+            if self.err_occurred:
+                return None
             if footprint_id is not None:
                 if footprint_id not in result_fields:
                     result_fields.append(footprint_id)
 
             pixspace_id = self._get_field_id('Spatial Resolution',
                                              self.collection)
+            if self.err_occurred:
+                return None
             if pixspace_id is not None:
                 if pixspace_id not in result_fields:
                     result_fields.append(pixspace_id)
 
-        params['resultField'] = ','.join(result_fields)
+        if result_field is not None and len(result_field) > 0:
+            params['resultField'] = ','.join(result_fields)
 
         query_str = urlencode(params)
-        self._rapi_url = f"{self.rapi_root}/search?{query_str}&format=json"
+        self._rapi_url = f"{self.rapi_root}/search?{query_str}"
 
         # Clear self.results
         self.results = []
@@ -2575,14 +2720,21 @@ class EODMSRAPI:
         msg = f"Searching for {self.collection} images on RAPI"
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
+        print(f"RAPI URL:\n\n{self._rapi_url}\n")
         # Send the query to the RAPI
         self._submit_search()
+
+        if self.err_occurred:
+            return None
 
         self.res_mdata = None
 
         if isinstance(self.results, QueryError):
             msg = self.results.get_msgs()
-            self.log_msg(msg, 'warning')
+            if isinstance(msgs, list):
+                self.log_msg(': '.join(msgs), 'warning')
+            else:
+                self.log_msg(msgs, 'warning')
             return {'errors': msg}
 
         msg = f"Number of {self.collection} images returned from RAPI: " \
@@ -2645,13 +2797,15 @@ class EODMSRAPI:
             result_fields = []
         self.collection = self._get_full_coll_id(collection)
 
-        if self.collection is None:
+        if self.collection is None or self.err_occurred:
             return None
 
         params = {'collection': self.collection}
 
         if filters is not None or features is not None or dates is not None:
             params['query'] = self._parse_query(filters, features, dates)
+            if self.err_occurred:
+                return None
 
         if isinstance(result_fields, str):
             result_fields = [result_fields]
@@ -2659,6 +2813,9 @@ class EODMSRAPI:
         result_field = []
         for field in result_fields:
             field_id = self._get_field_id(field, field_type='results')
+            if self.err_occurred:
+                return None
+
             if field_id is None:
                 msg = f"Field '{field}'' does not exist for collection " \
                       f"'{self.collection}'. Excluding it from resultField " \
@@ -2669,17 +2826,23 @@ class EODMSRAPI:
 
         # Get the geometry field and add it to resultField
         footprint_id = self._get_field_id('Footprint', field_type='results')
+        if self.err_occurred:
+            return None
         if footprint_id is not None:
             result_field.append(footprint_id)
 
         # Get the pixel spacing field and add it to resultField
         pixspace_id = self._get_field_id('Spatial Resolution',
                                          field_type='results')
+        if self.err_occurred:
+            return None
         if pixspace_id is not None:
             result_field.append(pixspace_id)
 
         # Get the pixel spacing field and add it to resultField
         dl_id = self._get_field_id('Download Link', field_type='results')
+        if self.err_occurred:
+            return None
         if dl_id is not None:
             result_field.append(dl_id)
 
@@ -2714,7 +2877,10 @@ class EODMSRAPI:
 
         if isinstance(self.results, QueryError):
             msgs = self.results.get_msgs()
-            self.log_msg(msgs, 'warning')
+            if isinstance(msgs, list):
+                self.log_msg(': '.join(msgs), 'warning')
+            else:
+                self.log_msg(msgs, 'warning')
             return {'errors': msgs}
 
         msg = f"Number of {self.collection} images returned from RAPI: " \
@@ -2760,10 +2926,14 @@ class EODMSRAPI:
         if self.res_format == 'full':
             if self.res_mdata is None:
                 self.res_mdata = self._fetch_metadata()
+            if self.err_occurred:
+                return None
             return self.res_mdata
         elif self.res_format == 'geojson':
             if self.res_mdata is None:
                 self.res_mdata = self._fetch_metadata()
+            if self.err_occurred:
+                return None
             return self.geo.convert_to_geojson(self.res_mdata)
         elif self.res_format == 'brief':
             conv_res = []
@@ -2948,6 +3118,9 @@ class EODMSRAPI:
             logger.debug(f"RAPI POST:\n\n{post_json}\n")
             order_res = self._submit(order_url, 'POST', post_json)
 
+            if self.err_occurred:
+                return None
+
             if order_res is None:
                 err = self._get_exception(order_res)
                 if isinstance(err, list):
@@ -2958,6 +3131,7 @@ class EODMSRAPI:
             if isinstance(order_res, requests.Response) and not order_res.ok:
                 msg = "Order submission failed."
                 self.log_msg(msg, 'error')
+                self.err_occurred = True
                 return msg
 
             # Add the time the order was submitted
