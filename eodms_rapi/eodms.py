@@ -24,6 +24,8 @@
 # 
 ##############################################################################
 
+
+
 import os
 # import sys
 import requests
@@ -133,6 +135,7 @@ class EODMSRAPI:
         self.collection = None
         self._session = requests.Session()
         self._session.auth = (username, password)
+        self._email = 'eodms-sgdot@nrcan-rncan.gc.ca'
 
         self.rapi_root = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi"
 
@@ -159,6 +162,7 @@ class EODMSRAPI:
         self.start = datetime.datetime.now()
         self.logger = logger
         self.err_occurred = False
+        self.auth_err = False
 
         self.geo = EODMSGeo(self)
 
@@ -273,11 +277,12 @@ class EODMSRAPI:
             # Inform the user if the error was caused by an authentication
             #   issue.
             err_msg = "An authentication error has occurred while " \
-                      "trying to access the EODMS RAPI.\nPlease ensure your " \
-                      "account login is in good standing on the actual " \
+                      "trying to access the EODMS RAPI. Please ensure " \
+                      "your account login is in good standing on the actual " \
                       "website, https://www.eodms-sgdot.nrcan-rncan.gc.ca/" \
                       "index-en.html."
             self.err_occurred = True
+            self.auth_err = True
             self.log_msg(err_msg, 'error')
             return True
 
@@ -1093,11 +1098,13 @@ class EODMSRAPI:
 
         if isinstance(r, QueryError):
             err_msg = r.get_msgs(True)
-            if err_msg.find('404 Client Error') > -1 or \
-                    err_msg.find('400 Client Error') > -1 or \
-                    err_msg.find('500 Server Error'):
+
+            out_msg = self._check_http(err_msg)
+            if out_msg is not None:
+                self.log_msg(out_msg, 'warning')
                 self.results = r
                 return self.results
+
             msg = 'Retrying in 3 seconds...'
             self.log_msg(msg, 'warning')
             time.sleep(3)
@@ -1130,6 +1137,23 @@ class EODMSRAPI:
             self._rapi_url += f'&firstResult={first_result}'
 
         return self._submit_search()
+
+    def _check_http(self, err_msg):
+        if err_msg.find('404 Client Error') > -1 or \
+            err_msg.find('404 for url') > -1:
+            msg = f"404 Client Error: Could not find {self._rapi_url}."
+        elif err_msg.find('400 Client Error') > -1:
+            msg = f"400 Client Error: A Bad Request occurred while trying to " \
+                  f"reach {self._rapi_url}"
+        elif err_msg.find('500 Server Error') > -1:
+            msg = f"500 Server Error: An internal server error has occurred " \
+                  f"while to access {self._rapi_url}"
+        elif err_msg.find('401 Client Error') > -1:
+            return err_msg
+        else:
+            return None
+
+        return msg
 
     def _submit(self, query_url, request_type='get', post_data=None,
                 timeout=None, record_name=None, quiet=True, as_json=True):
@@ -1205,34 +1229,33 @@ class EODMSRAPI:
             except requests.exceptions.HTTPError as errh:
                 msg = f"HTTP Error: {errh}"
 
-                if msg.find('Unauthorized') > -1 \
-                        or msg.find('404 Client Error: '
-                                    'Not Found for url') > -1 \
-                        or msg.find('404 for url') > -1 \
-                        or msg.find('401') > -1:
-                    err = msg
+                out_msg = self._check_http(msg)
+
+                if out_msg is not None:
+                    err = out_msg
                     query_err = QueryError(err)
 
                     if self._check_auth(query_err):
                         return query_err
 
                     return query_err
-                elif msg.find('400 Client Error') > -1:
-                    query_err = self._get_exception(res)
 
-                    if self._check_auth(query_err):
-                        return err
-
-                    return query_err
-                elif msg.find('500 Server Error') > -1:
-                    query_err = self._get_exception(res)
-                    # err = msg
-                    # query_err = QueryError(err)
-
-                    if self._check_auth(query_err):
-                        return err
-
-                    return query_err
+                # elif msg.find('400 Client Error') > -1:
+                #     query_err = self._get_exception(res)
+                #
+                #     if self._check_auth(query_err):
+                #         return err
+                #
+                #     return query_err
+                # elif msg.find('500 Server Error') > -1:
+                #     query_err = self._get_exception(res)
+                #     # err = msg
+                #     # query_err = QueryError(err)
+                #
+                #     if self._check_auth(query_err):
+                #         return err
+                #
+                #     return query_err
 
                 if attempt < self.attempts:
                     msg = f"{msg}; attempting to connect again..."
@@ -1267,6 +1290,7 @@ class EODMSRAPI:
                 attempt += 1
             except (requests.exceptions.ConnectionError,
                     requests.exceptions.RequestException) as req_err:
+                print(f"res: {res}")
                 msg = f"{req_err.__class__.__name__} Error: {req_err}"
                 self.err_occurred = True
                 self.log_msg(msg, 'error')
@@ -1312,6 +1336,15 @@ class EODMSRAPI:
 
         if res.text == '':
             return None
+
+        if res.text.find('BRB!') > -1:
+            msg = f"There was a problem while attempting to access the " \
+                  f"EODMS RAPI server. If the problem persists, please " \
+                  f"contact the EODMS team at {self._email}."
+            self.log_msg(msg, 'error')
+            self.err_occurred = True
+            query_err = QueryError(msg)
+            return query_err
 
         if as_json:
             return res.json()
