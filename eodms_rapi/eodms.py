@@ -1290,7 +1290,7 @@ class EODMSRAPI:
                 attempt += 1
             except (requests.exceptions.ConnectionError,
                     requests.exceptions.RequestException) as req_err:
-                print(f"res: {res}")
+                # print(f"res: {res}")
                 msg = f"{req_err.__class__.__name__} Error: {req_err}"
                 self.err_occurred = True
                 self.log_msg(msg, 'error')
@@ -1335,12 +1335,12 @@ class EODMSRAPI:
                 return except_err
 
         if res.text == '':
-            return None
+            return res
 
         if res.text.find('BRB!') > -1:
             msg = f"There was a problem while attempting to access the " \
                   f"EODMS RAPI server. If the problem persists, please " \
-                  f"contact the EODMS team at {self._email}."
+                  f"contact the EODMS Support Team at {self._email}."
             self.log_msg(msg, 'error')
             self.err_occurred = True
             query_err = QueryError(msg)
@@ -1609,8 +1609,14 @@ class EODMSRAPI:
             # orders = self.get_orders(max_orders=max_orders)
             orders = self.get_orders(unique_items)
 
+            # for order in orders:
+            #     print(f"itemId: {order.get('itemId')}")
+            #     print(f"  orderId: {order.get('orderId')}")
+            #     print(f"  recordId: {order.get('recordId')}")
+            # answer = input("Press enter...")
+
             if self.err_occurred:
-                return None
+                return complete_items
 
             if orders is None:
                 msg = "An error occurred while getting a list of orders. " \
@@ -2121,21 +2127,22 @@ class EODMSRAPI:
             return None
 
         if not all("orderId" in keys for keys in records):
-            msg = "Cannot get orders as no orderId is provided in the " \
-                  "results."
-            self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-            return None
+            # msg = "Cannot get orders as no orderId is provided in the " \
+            #       "results."
+            orders = self.get_orders()
+            # self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+        else:
 
-        # dates = self._get_date_range(records)
-        #
-        # if dates is None:
-        #     msg = "Cannot get orders as no order dates are available."
-        #     self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-        #     return None
-        #
-        # start, end = dates
+            # dates = self._get_date_range(records)
+            #
+            # if dates is None:
+            #     msg = "Cannot get orders as no order dates are available."
+            #     self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+            #     return None
+            #
+            # start, end = dates
 
-        orders = self.get_orders(records)
+            orders = self.get_orders(records)
 
         if self.err_occurred:
             return None
@@ -2234,8 +2241,8 @@ class EODMSRAPI:
                 self.log_msg(msg, 'warning')
                 return msg
 
-        msg = "Order removed successfully."
-        self.log_msg(msg)
+        # msg = "Order removed successfully."
+        # self.log_msg(msg)
 
         return param_res.json()
 
@@ -2862,7 +2869,7 @@ class EODMSRAPI:
         params['format'] = "json"
 
         query_str = urlencode(params)
-        self._rapi_url = f"{self.rapi_root}/search?{query_str}&format=json"
+        self._rapi_url = f"{self.rapi_root}/search?{query_str}"
 
         # Clear self.results
         self.results = []
