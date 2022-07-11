@@ -43,9 +43,14 @@ class TestEodmsRapi(unittest.TestCase):
         """
         Tests the search, order and download of the py-eodms-rapi
         """
+        
+        username = os.getenv('EODMS_USER')
+        password = os.environ.get('EODMS_PASSWORD')
+        
+        print(f"username: {username}")
+        print(f"password: {password}")
 
-        rapi = eodms_rapi.EODMSRAPI(os.getenv('EODMS_USER'),
-                                    os.environ.get('EODMS_PASSWORD'))
+        rapi = eodms_rapi.EODMSRAPI(username, password)
 
         # Set a polygon of geographic centre of Canada using GeoJSON
         feat = [
