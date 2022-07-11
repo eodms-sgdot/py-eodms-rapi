@@ -29,8 +29,7 @@ jobs:
       # Install package from setup.py
       - name: Install package from setup.py
         run: |
-          sudo su - root
-          python setup.py install
+          sudo python setup.py install
 
       # Runs a single command using the runners shell
       - name: Run py-eodms-rapi Test 1 - Search, Order & Download
