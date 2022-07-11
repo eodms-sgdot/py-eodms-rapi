@@ -33,7 +33,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Run py-eodms-rapi Test 1 - Search, Order & Download
-        continue-on-error: true
+        # continue-on-error: true
         env:
           EODMS_USER: ${{ secrets.USERNAME }}
           EODMS_PASSWORD: ${{ secrets.PASSWORD }}
@@ -43,7 +43,7 @@ jobs:
           
       # Runs a single command using the runners shell
       - name: Run py-eodms-rapi Test 2 - Show Order Parameters
-        continue-on-error: true
+        # continue-on-error: true
         env:
           EODMS_USER: ${{ secrets.USERNAME }}
           EODMS_PASSWORD: ${{ secrets.PASSWORD }}
@@ -53,7 +53,7 @@ jobs:
           
       # Runs a single command using the runners shell
       - name: Run py-eodms-rapi Test 3 - Delete Order
-        continue-on-error: true
+        # continue-on-error: true
         env:
           EODMS_USER: ${{ secrets.USERNAME }}
           EODMS_PASSWORD: ${{ secrets.PASSWORD }}
@@ -63,7 +63,7 @@ jobs:
           
       # Runs a single command using the runners shell
       - name: Run py-eodms-rapi Test 4 - Get Available Fields
-        continue-on-error: true
+        # continue-on-error: true
         env:
           EODMS_USER: ${{ secrets.USERNAME }}
           EODMS_PASSWORD: ${{ secrets.PASSWORD }}
