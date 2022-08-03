@@ -144,7 +144,6 @@ class EODMSRAPI:
         self.download_size = 0
         self.size_limit = None
         self.results = []
-        self.search_results = None
         self.res_mdata = None
         self.limit_interval = 1000
         self.name_conv = 'camel'
@@ -164,8 +163,6 @@ class EODMSRAPI:
         self.logger = logger
         self.err_occurred = False
         self.auth_err = False
-        self.err_msg = None
-        self.order_json = None
 
         self.geo = EODMSGeo(self)
 
@@ -176,106 +173,6 @@ class EODMSRAPI:
         self.failed_status = ['CANCELLED', 'FAILED', 'EXPIRED',
                               'DELIVERED', 'MEDIA_ORDER_SUBMITTED',
                               'AWAITING_PAYMENT']
-
-        self.ui_field_map = {
-            'COSMO-SkyMed1': ['ARCHIVE_IMAGE.ORDER_KEY',
-                              'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                              'csmed.ORBIT_ABS'],
-            'DMC': ['ARCHIVE_IMAGE.ORDER_KEY',
-                    'SENSOR_BEAM.SPATIAL_RESOLUTION', 'DMC.CLOUD_PERCENT',
-                    'DMC.INCIDENCE_ANGLE'],
-            'Gaofen-1': ['ARCHIVE_IMAGE.ORDER_KEY',
-                         'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                         'SATOPT.CLOUD_PERCENT', 'SATOPT.SENS_INC'],
-            'GeoEye-1': ['ARCHIVE_IMAGE.ORDER_KEY',
-                         'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                         'GE1.CLOUD_PERCENT', 'GE1.SENS_INC'],
-            'IKONOS': ['ARCHIVE_IMAGE.ORDER_KEY',
-                       'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                       'IKONOS.CLOUD_PERCENT', 'IKONOS.SENS_INC',
-                       'IKONOS.SBEAM'],
-            'IRS': ['ARCHIVE_IMAGE.ORDER_KEY',
-                    'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                    'IRS.CLOUD_PERCENT', 'IRS.SENS_INC', 'IRS.SBEAM'],
-            'NAPL': ['ARCHIVE_IMAGE.ORDER_KEY', 'PHOTO.SBEAM',
-                     'FLIGHT_SEGMENT.SCALE', 'ROLL.ROLL_NUMBER',
-                     'PHOTO.PHOTO_NUMBER', 'PREVIEW_AVAILABLE'],
-            'PlanetScope': ['ARCHIVE_IMAGE.ORDER_KEY',
-                            'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                            'SATOPT.CLOUD_PERCENT', 'SATOPT.SENS_INC'],
-            'QuickBird-2': ['ARCHIVE_IMAGE.ORDER_KEY',
-                            'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                            'QB2.CLOUD_PERCENT', 'QB2.SENS_INC', 'QB2.SBEAM'],
-            'Radarsat1': ['ARCHIVE_IMAGE.ORDER_KEY',
-                          'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                          'RSAT1.ORBIT_DIRECTION', 'RSAT1.INCIDENCE_ANGLE',
-                          'RSAT1.SBEAM', 'RSAT1.BEAM_MNEMONIC',
-                          'RSAT1.ORBIT_ABS', 'ARCHIVE_IMAGE.PRODUCT_TYPE',
-                          'ARCHIVE_IMAGE.PRODUCT_ID',
-                          'PROCESSING_LEVEL_LUT.PROCESSING_LEVEL'],
-            'Radarsat1RawProducts': ['SENSOR_BEAM.SPATIAL_RESOLUTION',
-                                     'RSAT1.ORBIT_DIRECTION',
-                                     'RSAT1.INCIDENCE_ANGLE',
-                                     'RSAT1.DATASET_ID',
-                                     'ARCHIVE_CUF.ARCHIVE_FACILITY',
-                                     'ARCHIVE_CUF.RECEPTION_FACILITY',
-                                     'RSAT1.SBEAM', 'RSAT1.BEAM_MNEMONIC',
-                                     'RSAT1.ORBIT_ABS'],
-            'Radarsat2': ['ARCHIVE_IMAGE.ORDER_KEY',
-                          'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                          'RSAT2.ORBIT_DIRECTION', 'RSAT2.INCIDENCE_ANGLE',
-                          'CATALOG_IMAGE.SEQUENCE_ID', 'RSAT2.SBEAM',
-                          'RSAT2.BEAM_MNEMONIC', 'RSAT2.ANTENNA_ORIENTATION',
-                          'RSAT2.TR_POL', 'RSAT2.REC_POL', 'RSAT2.IMAGE_ID',
-                          'RSAT2.ORBIT_REL'],
-            'Radarsat2RawProducts': ['SENSOR_BEAM.SPATIAL_RESOLUTION',
-                                     'RSAT2.ORBIT_DIRECTION',
-                                     'RSAT2.INCIDENCE_ANGLE',
-                                     'RSAT2.ANTENNA_ORIENTATION',
-                                     'RSAT2.SBEAM', 'RSAT2.BEAM_MNEMONIC',
-                                     'RSAT2.TR_POL', 'RSAT2.REC_POL',
-                                     'RSAT2.IMAGE_ID'],
-            'RapidEye': ['ARCHIVE_IMAGE.ORDER_KEY',
-                         'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                         'RE.CLOUD_PERCENT', 'RE.SENS_INC', 'RE.SBEAM'],
-            'RCMImageProducts': ['ARCHIVE_IMAGE.ORDER_KEY',
-                                 'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                                 'RCM.ORBIT_DIRECTION', 'RCM.INCIDENCE_ANGLE',
-                                 'RCM.BEAM_MNEMONIC',
-                                 'SENSOR_BEAM_CONFIG.BEAM_MODE_QUALIFIER',
-                                 'RCM.SBEAM', 'RCM.DOWNLINK_SEGMENT_ID',
-                                 'LUTApplied', 'CATALOG_IMAGE.OPEN_DATA',
-                                 'RCM.POLARIZATION',
-                                 'PRODUCT_FORMAT.FORMAT_NAME_E',
-                                 'ARCHIVE_IMAGE.PRODUCT_TYPE', 'RCM.ORBIT_REL',
-                                 'RCM.WITHIN_ORBIT_TUBE',
-                                 'CATALOG_IMAGE.SEQUENCE_ID',
-                                 'RCM.SPECIAL_HANDLING_REQUIRED'],
-            'RCMScienceData': ['SENSOR_BEAM.SPATIAL_RESOLUTION',
-                               'RCM.ORBIT_DIRECTION', 'RCM.INCIDENCE_ANGLE',
-                               'RCM.SBEAM', 'RCM.BEAM_MNEMONIC',
-                               'CUF_RCM.TR_POL', 'CUF_RCM.REC_POL',
-                               'RCM.DOWNLINK_SEGMENT_ID'],
-            'SGBAirPhotos': ['ARCHIVE_IMAGE.ORDER_KEY',
-                             'FLIGHT_SEGMENT.SCALE', 'ROLL.ROLL_NUMBER',
-                             'PHOTO.PHOTO_NUMBER', 'Area'],
-            'SPOT': ['ARCHIVE_IMAGE.ORDER_KEY',
-                     'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                     'SPOT.CLOUD_PERCENT', 'SPOT.SENS_INC'],
-            'TerraSarX': ['ARCHIVE_IMAGE.ORDER_KEY',
-                          'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                          'TSX1.ORBIT_DIRECTION', 'INCIDENCE_ANGLE'],
-            'VASP': ['CATALOG_SERIES.CEOID'],
-            'WorldView-1': ['ARCHIVE_IMAGE.ORDER_KEY',
-                            'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                            'WV1.CLOUD_PERCENT', 'WV1.SENS_INC', 'WV1.SBEAM'],
-            'WorldView-2': ['ARCHIVE_IMAGE.ORDER_KEY',
-                            'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                            'WV2.CLOUD_PERCENT', 'WV2.SENS_INC', 'WV2.SBEAM'],
-            'WorldView-3': ['ARCHIVE_IMAGE.ORDER_KEY',
-                            'SENSOR_BEAM.SPATIAL_RESOLUTION',
-                            'WV3.CLOUD_PERCENT', 'WV3.SENS_INC', 'WV3.SBEAM'],
-        }
 
     ###############################################################
     # Backwards compatibility methods
@@ -373,20 +270,20 @@ class EODMSRAPI:
             else:
                 return False
 
-        self.err_msg = in_err.get_msgs(True)
-        if self.err_msg.find('401 - Unauthorized') > -1 or \
-                self.err_msg.find('HTTP Error: 401 Client Error') > -1 or \
-                self.err_msg.find('Unauthorized') > -1:
+        err_msg = in_err.get_msgs(True)
+        if err_msg.find('401 - Unauthorized') > -1 or \
+                err_msg.find('HTTP Error: 401 Client Error') > -1 or \
+                err_msg.find('Unauthorized') > -1:
             # Inform the user if the error was caused by an authentication
             #   issue.
-            self.err_msg = "An authentication error has occurred while " \
+            err_msg = "An authentication error has occurred while " \
                       "trying to access the EODMS RAPI. Please ensure " \
                       "your account login is in good standing on the actual " \
                       "website, https://www.eodms-sgdot.nrcan-rncan.gc.ca/" \
                       "index-en.html."
             self.err_occurred = True
             self.auth_err = True
-            self.log_msg(self.err_msg, 'error')
+            self.log_msg(err_msg, 'error')
             return True
 
         return False
@@ -499,8 +396,7 @@ class EODMSRAPI:
         else:
             return self._to_camel_case(field)
 
-    def _fetch_metadata(self, max_workers=4, len_timeout=20.0,
-                        show_progress=True):
+    def _fetch_metadata(self, max_workers=4, len_timeout=20.0):
         """
         Fetches all metadata for a given record
 
@@ -530,35 +426,29 @@ class EODMSRAPI:
         if isinstance(self.results, dict):
             self.results = [self.results]
 
-        if show_progress:
-            n_urls = len(self.results)
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                out_results = list(
-                    tqdm(
-                        # executor.map(
-                        #     self._fetch_single_record_metadata,
-                        #     self.results,
-                        #     [len_timeout] * n_urls,
-                        #     [metadata_fields] * n_urls,
-                        # ),
-                        executor.map(
-                            self._fetch_single_record_metadata,
-                            self.results,
-                            [len_timeout] * n_urls,
-                        ),
-                        desc=f'{self._header}Fetching result metadata',
-                        total=n_urls,
-                        miniters=1,
-                        unit='item'
-                    )
+        n_urls = len(self.results)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            res = list(
+                tqdm(
+                    # executor.map(
+                    #     self._fetch_single_record_metadata,
+                    #     self.results,
+                    #     [len_timeout] * n_urls,
+                    #     [metadata_fields] * n_urls,
+                    # ),
+                    executor.map(
+                        self._fetch_single_record_metadata,
+                        self.results,
+                        [len_timeout] * n_urls,
+                    ),
+                    desc=f'{self._header}Fetching result metadata',
+                    total=n_urls,
+                    miniters=1,
+                    unit='item'
                 )
-        else:
-            out_results = []
-            for res in self.results:
-                mdata = self._fetch_single_record_metadata(res, len_timeout)
-                out_results.append(mdata)
+            )
 
-        return out_results
+        return res
 
     def _fetch_single_record_metadata(self, record, timeout):  # , keys):
         """
@@ -726,12 +616,7 @@ class EODMSRAPI:
 
         field_id = None
         if field_type == 'search':
-            fields = self.get_available_fields(name_type='all')
-
-            if fields is None:
-                return None
-
-            fields = fields[field_type]
+            fields = self.get_available_fields(name_type='all')[field_type]
 
             # Check in available fields
             for k, v in fields.items():
@@ -747,12 +632,7 @@ class EODMSRAPI:
             return field_id
 
         elif field_type == 'results':
-            fields = self.get_available_fields(name_type='all')
-
-            if fields is None:
-                return None
-
-            fields = fields[field_type]
+            fields = self.get_available_fields(name_type='all')[field_type]
 
             # Check if results fields
             for k, v in fields.items():
@@ -1198,16 +1078,14 @@ class EODMSRAPI:
         :rtype:  json
         """
 
-        # If max_results is specified, reduce the number of records in
-        #   search_results to max_results and then return the search_results
         if self.max_results is not None:
-            if len(self.search_results) >= self.max_results:
-                self.search_results = self.search_results[:self.max_results]
-                return self.search_results
+            if len(self.results) >= self.max_results:
+                self.results = self.results[:self.max_results]
+                return self.results
 
         # Print status of search
-        start = len(self.search_results) + 1
-        end = len(self.search_results) + self.limit_interval
+        start = len(self.results) + 1
+        end = len(self.results) + self.limit_interval
 
         msg = f"Querying records within {start} to {end}..."
         self.log_msg(msg)
@@ -1215,47 +1093,37 @@ class EODMSRAPI:
         logger.debug(f"RAPI Query URL: {self._rapi_url}")
         r = self._submit(self._rapi_url)
 
-        # If a fatal error occurred
         if r is None or self.err_occurred:
             return None
 
-        # If an QueryError occurred
         if isinstance(r, QueryError):
             err_msg = r.get_msgs(True)
 
             out_msg = self._check_http(err_msg)
             if out_msg is not None:
                 self.log_msg(out_msg, 'warning')
-                self.search_results = r
-                return self.search_results
+                self.results = r
+                return self.results
 
             msg = 'Retrying in 3 seconds...'
             self.log_msg(msg, 'warning')
             time.sleep(3)
             return self._submit_search()
 
-        # If applicable, convert results to JSON
         if isinstance(r, requests.Response):
             data = r.json()
         else:
             data = r
 
-        # Get the total number of results
         tot_results = int(data['totalResults'])
-
-        # If there are no results, no need to go further
         if tot_results == 0:
-            return self.search_results
-
-        # If the number of results has hit the limit_interval, return results
+            return self.results
         elif tot_results < self.limit_interval:
-            self.search_results += data['results']
-            return self.search_results
+            self.results += data['results']
+            return self.results
 
-        # Append firstResult to the URL query and run _submit_search method
-        #   again
-        self.search_results += data['results']
-        first_result = len(self.search_results) + 1
+        self.results += data['results']
+        first_result = len(self.results) + 1
         if self._rapi_url.find('&firstResult') > -1:
             old_first_result = int(re.search(
                 r'&firstResult=([\d*]+)',
@@ -1423,14 +1291,14 @@ class EODMSRAPI:
             except (requests.exceptions.ConnectionError,
                     requests.exceptions.RequestException) as req_err:
                 # print(f"res: {res}")
-                self.err_msg = f"{req_err.__class__.__name__} Error: {req_err}"
+                msg = f"{req_err.__class__.__name__} Error: {req_err}"
                 self.err_occurred = True
-                self.log_msg(self.err_msg, 'error')
+                self.log_msg(msg, 'error')
                 # attempt = self.attempts
                 return None
             except KeyboardInterrupt:
-                self.err_msg = "Process ended by user."
-                self.log_msg(self.err_msg, out_indent='\n')
+                msg = "Process ended by user."
+                self.log_msg(msg, out_indent='\n')
                 self.err_occurred = True
                 return None
             except Exception:
@@ -1470,12 +1338,12 @@ class EODMSRAPI:
             return res
 
         if res.text.find('BRB!') > -1:
-            self.err_msg = f"There was a problem while attempting to access the " \
+            msg = f"There was a problem while attempting to access the " \
                   f"EODMS RAPI server. If the problem persists, please " \
                   f"contact the EODMS Support Team at {self._email}."
-            self.log_msg(self.err_msg, 'error')
+            self.log_msg(msg, 'error')
             self.err_occurred = True
-            query_err = QueryError(self.err_msg)
+            query_err = QueryError(msg)
             return query_err
 
         if as_json:
@@ -1520,7 +1388,7 @@ class EODMSRAPI:
                     new_k = self.get_conv(k)
                     m[new_k] = m.pop(k)
 
-    def get_collection_id(self, coll):
+    def _get_full_coll_id(self, coll):
         """
         Gets the full collection ID using the input collection ID which can be a
             substring of the collection ID.
@@ -1535,21 +1403,14 @@ class EODMSRAPI:
         if not self.rapi_collections:
             self.get_collections()
 
-        # print(f"self.rapi_collections: {self.rapi_collections}")
-
         if self.rapi_collections is None or self.err_occurred:
             return None
 
         for k, v in self.rapi_collections.items():
-            if coll.lower() == v['title'].lower():
-                return k
             if coll.lower() == k.lower():
                 return k
             elif coll.lower() in v['aliases']:
                 return k
-
-    def get_err_msg(self):
-        return self.err_msg
 
     def set_query_timeout(self, timeout):
         """
@@ -1870,8 +1731,7 @@ class EODMSRAPI:
 
         return complete_items
 
-    def get_available_fields(self, collection=None, name_type='all',
-                             ui_fields=False):
+    def get_available_fields(self, collection=None, name_type='all'):
         """
         Gets a dictionary of available fields for a collection from the RAPI.
 
@@ -1879,9 +1739,6 @@ class EODMSRAPI:
         :type  collection: str
         :param name_type: The field name type to search for.
         :type  name_type: str
-        :param ui_fields: Determines whether to return fields that the
-        EODMS UI website uses.
-        :type  ui_fields: bool
 
         :return: A dictionary containing the available fields for the given
                 collection.
@@ -1906,17 +1763,12 @@ class EODMSRAPI:
             self.log_msg(coll_res.get_msgs(True), 'warning')
             return None
 
-        coll_ui_fields = self.ui_field_map.get(collection)
-
         # Get a list of the searchFields
         fields = {}
         if name_type == 'title' or name_type == 'id':
 
             srch_fields = []
             for r in coll_res['searchFields']:
-                if coll_ui_fields is not None and ui_fields:
-                    if r['id'] not in coll_ui_fields:
-                        continue
                 srch_fields.append(r[name_type])
 
             fields['search'] = srch_fields
@@ -1930,18 +1782,16 @@ class EODMSRAPI:
         else:
             srch_fields = {}
             for r in coll_res['searchFields']:
-                if coll_ui_fields is not None and ui_fields:
-                    if r['id'] not in coll_ui_fields:
-                        continue
-                if r.get('choices') is None:
-                    r['choices'] = None
-                srch_fields[r['title']] = r
+                srch_fields[r['title']] = {'id': r['id'],
+                                           'datatype': r['datatype'],
+                                           'choices': r.get('choices')}
 
             fields['search'] = srch_fields
 
             res_fields = {}
             for r in coll_res['resultFields']:
-                res_fields[r['title']] = r
+                res_fields[r['title']] = {'id': r['id'],
+                                          'datatype': r['datatype']}
 
             fields['results'] = res_fields
 
@@ -2042,10 +1892,10 @@ class EODMSRAPI:
 
         # If an error occurred
         if isinstance(coll_res, QueryError):
-            self.err_msg = f"Could not get a list of collections due to " \
+            msg = f"Could not get a list of collections due to " \
                   f"'{coll_res.get_msgs(True)}'."
             self.err_occurred = True
-            self.log_msg(self.err_msg, 'error')
+            self.log_msg(msg, 'error')
             return coll_res
 
         # Create the collections dictionary
@@ -2353,7 +2203,7 @@ class EODMSRAPI:
         """
 
         # Get the proper Collection ID for the RAPI
-        collection = self.get_collection_id(collection)
+        collection = self._get_full_coll_id(collection)
 
         if self.err_occurred:
             return None
@@ -2378,8 +2228,8 @@ class EODMSRAPI:
             self.log_msg(msg, 'warning')
             return msg
         except KeyboardInterrupt:
-            self.err_msg = "Process ended by user."
-            self.log_msg(self.err_msg, out_indent='\n')
+            msg = "Process ended by user."
+            self.log_msg(msg, out_indent='\n')
             self.err_occurred = True
             print()
             return None
@@ -2420,7 +2270,7 @@ class EODMSRAPI:
 
         # keys = self.get_meta_keys()
 
-        self.collection = self.get_collection_id(collection)
+        self.collection = self._get_full_coll_id(collection)
 
         self._rapi_url = f"{self.rapi_root}/record/{self.collection}/" \
                          f"{record_id}?format=json"
@@ -2461,16 +2311,16 @@ class EODMSRAPI:
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
 
         # Set the RAPI URL
-        self._rapi_url = f"{self.rapi_root}/order/{order_id}/{item_id}"
+        order_url = f"{self.rapi_root}/order/{order_id}/{item_id}"
 
         # Send the JSON request to the RAPI
-        cancel_res = self._submit(self._rapi_url, 'delete')
+        cancel_res = self._submit(order_url, 'delete')
 
         if self.err_occurred:
             return None
 
         # try:
-        #     cancel_res = self._session.delete(url=self._rapi_url)
+        #     cancel_res = self._session.delete(url=order_url)
         #     cancel_res.raise_for_status()
         # except (requests.exceptions.HTTPError,
         #         requests.exceptions.ConnectionError,
@@ -2602,10 +2452,10 @@ class EODMSRAPI:
             return None
 
         if isinstance(dest_res, QueryError):
-            self.err_msg = f"Could not create destination due to " \
+            msg = f"Could not create destination due to " \
                   f"'{dest_res.get_msgs(True)}'."
             self.err_occurred = True
-            self.log_msg(self.err_msg, 'error')
+            self.log_msg(msg, 'error')
             return None
 
         return dest_res
@@ -2634,10 +2484,10 @@ class EODMSRAPI:
             return None
 
         if isinstance(dest_res, QueryError):
-            self.err_msg = f"Could not delete destination due to " \
+            msg = f"Could not delete destination due to " \
                   f"'{dest_res.get_msgs(True)}'."
             self.err_occurred = True
-            self.log_msg(self.err_msg, 'error')
+            self.log_msg(msg, 'error')
             return None
 
         return dest_res
@@ -2746,10 +2596,10 @@ class EODMSRAPI:
             return None
 
         if isinstance(dest_res, QueryError):
-            self.err_msg = f"Could not update destination due to " \
+            msg = f"Could not update destination due to " \
                   f"'{dest_res.get_msgs(True)}'."
             self.err_occurred = True
-            self.log_msg(self.err_msg, 'error')
+            self.log_msg(msg, 'error')
             return None
 
         return dest_res
@@ -2871,8 +2721,8 @@ class EODMSRAPI:
         query_str = urlencode(params)
         self._rapi_url = f"{self.rapi_root}/search?{query_str}"
 
-        # Clear self.search_results
-        self.search_results = []
+        # Clear self.results
+        self.results = []
 
         msg = f"Searching for {self.collection} images on RAPI"
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
@@ -2886,8 +2736,8 @@ class EODMSRAPI:
 
         self.res_mdata = None
 
-        if isinstance(self.search_results, QueryError):
-            msg = self.search_results.get_msgs()
+        if isinstance(self.results, QueryError):
+            msg = self.results.get_msgs()
             if isinstance(msgs, list):
                 self.log_msg(': '.join(msgs), 'warning')
             else:
@@ -2895,10 +2745,8 @@ class EODMSRAPI:
             return {'errors': msg}
 
         msg = f"Number of {self.collection} images returned from RAPI: " \
-              f"{len(self.search_results)}"
+              f"{len(self.results)}"
         self.log_msg(msg)
-
-        self.results += self.search_results
 
     def search(self, collection, filters=None, features=None, dates=None,
                result_fields=None, max_results=None):
@@ -2954,7 +2802,7 @@ class EODMSRAPI:
         # Get the proper Collection ID for the RAPI
         if result_fields is None:
             result_fields = []
-        self.collection = self.get_collection_id(collection)
+        self.collection = self._get_full_coll_id(collection)
 
         if self.collection is None or self.err_occurred:
             return None
@@ -3023,8 +2871,8 @@ class EODMSRAPI:
         query_str = urlencode(params)
         self._rapi_url = f"{self.rapi_root}/search?{query_str}"
 
-        # Clear self.search_results
-        self.search_results = []
+        # Clear self.results
+        self.results = []
 
         msg = f"Searching for {self.collection} images on RAPI"
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
@@ -3034,8 +2882,8 @@ class EODMSRAPI:
 
         self.res_mdata = None
 
-        if isinstance(self.search_results, QueryError):
-            msgs = self.search_results.get_msgs()
+        if isinstance(self.results, QueryError):
+            msgs = self.results.get_msgs()
             if isinstance(msgs, list):
                 self.log_msg(': '.join(msgs), 'warning')
             else:
@@ -3043,15 +2891,10 @@ class EODMSRAPI:
             return {'errors': msgs}
 
         msg = f"Number of {self.collection} images returned from RAPI: " \
-              f"{len(self.search_results)}"
+              f"{len(self.results)}"
         self.log_msg(msg)
 
-        self.results += self.search_results
-
-    def clear_results(self):
-        self.results = []
-
-    def get_results(self, form='raw', show_progress=True):
+    def get_results(self, form='raw'):
         """
         Gets the self.results in a given format
 
@@ -3089,15 +2932,13 @@ class EODMSRAPI:
 
         if self.res_format == 'full':
             if self.res_mdata is None:
-                self.res_mdata = self._fetch_metadata(
-                    show_progress=show_progress)
+                self.res_mdata = self._fetch_metadata()
             if self.err_occurred:
                 return None
             return self.res_mdata
         elif self.res_format == 'geojson':
             if self.res_mdata is None:
-                self.res_mdata = self._fetch_metadata(
-                    show_progress=show_progress)
+                self.res_mdata = self._fetch_metadata()
             if self.err_occurred:
                 return None
             return self.geo.convert_to_geojson(self.res_mdata)
@@ -3266,23 +3107,23 @@ class EODMSRAPI:
             items.append(item)
 
         # Create the dictionary for the POST request JSON
-        self.order_json = [{"destinations": destinations,
+        order_posts = [{"destinations": destinations,
                         "items": items[i:i + 100]} for i in range(0, len(items),
                                                                   100)]
         # Set the RAPI URL for the POST
-        self._rapi_url = f"{self.rapi_root}/order"
+        order_url = f"{self.rapi_root}/order"
 
-        logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
+        logger.debug(f"RAPI URL:\n\n{order_url}\n")
 
         # Send the JSON request to the RAPI
         time_submitted = datetime.datetime.now(tzlocal()).isoformat()
         # order_res = None
         all_items = []
-        for p in self.order_json:
+        for p in order_posts:
             # Dump the dictionary into a JSON object
             post_json = json.dumps(p)
             logger.debug(f"RAPI POST:\n\n{post_json}\n")
-            order_res = self._submit(self._rapi_url, 'POST', post_json)
+            order_res = self._submit(order_url, 'POST', post_json)
 
             if self.err_occurred:
                 return None
@@ -3295,10 +3136,10 @@ class EODMSRAPI:
                     return msg
 
             if isinstance(order_res, requests.Response) and not order_res.ok:
-                self.err_msg = "Order submission failed."
-                self.log_msg(self.err_msg, 'error')
+                msg = "Order submission failed."
+                self.log_msg(msg, 'error')
                 self.err_occurred = True
-                return self.err_msg
+                return msg
 
             # Add the time the order was submitted
             items = order_res['items']
