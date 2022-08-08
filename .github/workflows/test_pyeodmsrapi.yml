@@ -70,3 +70,13 @@ jobs:
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_availablefields
+          
+      # Runs multiple searches
+      - name: Run py-eodms-rapi Test 5 - Multiple Searches and Clearing Results
+        # continue-on-error: true
+        env:
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
+        run: |
+          cd test
+          python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_multiple_searches
