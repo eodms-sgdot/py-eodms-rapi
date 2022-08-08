@@ -29,6 +29,7 @@ MANIFEST
 
 # Sphinx documentation
 docs/_build/
+docs/_pyexamples
 
 # Environments
 .env

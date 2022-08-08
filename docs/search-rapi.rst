@@ -241,7 +241,10 @@ Now submit the search, in this example, setting the **Collection ID** to 'RCMIma
 
 .. code-block:: python
 
-   >>> rapi.search("RCMImageProducts", filters=filters, features=feats, dates=dates, result_fields=result_fields, maxResults=100)
+   >>> rapi.search("RCMImageProducts", filters=filters, features=feats, dates=dates, result_fields=result_fields, max_results=100)
+   | EODMSRAPI | Searching for RCMImageProducts images on RAPI
+   | EODMSRAPI | Querying records within 1 to 1000...
+   | EODMSRAPI | Number of RCMImageProducts images returned from RAPI: 9
 
 Get Results
 -----------
@@ -492,6 +495,7 @@ There are three options for getting results:
 .. code-block:: python
 
    >>> res = rapi.get_results('full')
+   | EODMSRAPI | Fetching result metadata: 100%|██████████████████████████████████████████| 9/9 [00:02<00:00,  4.40item/s]
 
 Print Results
 -------------
@@ -504,9 +508,42 @@ The EODMSRAPI has a ``print_results`` function which will print the results in p
 .. code-block:: python
 
    >>> rapi.print_results()
+   [
+      {
+        "RECORD_ID": "13791752",
+        "COLLECTION_ID": "RCMImageProducts",
+    ...
 
 .. note::
     In Linux, if you get the error ``UnicodeEncodeError: 'ascii' codec can't encode character...``\ , add ``export LC_CTYPE=en_US.UTF-8`` to the "~/.bashrc" file and run ``source ~/.bashrc``.
+
+Multiple Searches
+-----------------
+
+As of v1.5.0, you can now perform more than one search and the news results will be added to the existing results.
+
+.. code-block:: python
+
+   >>> len(res) # This line is not needed, only to show number of results before new search
+   9
+   >>> rapi.search('RCMImageProducts', max_results=4)
+   
+   | EODMSRAPI | Searching for RCMImageProducts images on RAPI
+   | EODMSRAPI | Querying records within 1 to 1000...
+   | EODMSRAPI | Number of RCMImageProducts images returned from RAPI: 4
+   >>> res = rapi.get_results('full')
+   | EODMSRAPI | Fetching result metadata: 100%|████████████████████████████████████████| 13/13 [00:03<00:00,  4.21item/s]
+   >>> len(res) # This line is not needed, only to show number of results after new search
+   13
+   
+Clear Results
+-------------
+
+Since each search will add to any existing results, it is important to clear the results whenever needed.
+
+.. code-block:: python
+
+   >>> rapi.clear_results()
 
 Full Search Code Example
 ------------------------
@@ -539,5 +576,13 @@ Full Search Code Example
    # Get results
    rapi.set_field_convention('upper')
    res = rapi.get_results('full')
-
+	
+   # Print current results
    rapi.print_results(res)
+   
+   # Perform another search
+   rapi.search('RCMImageProducts', max_results=4)
+   res = rapi.get_results('full')
+   
+   # Clear results
+   rapi.clear_results()
