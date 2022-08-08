@@ -35,8 +35,8 @@ jobs:
       - name: Run py-eodms-rapi Test 1 - Search, Order & Download
         # continue-on-error: true
         env:
-          EODMS_USER: ${{ secrets.USERNAME }}
-          EODMS_PASSWORD: ${{ secrets.PASSWORD }}
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_search
@@ -45,8 +45,8 @@ jobs:
       - name: Run py-eodms-rapi Test 2 - Show Order Parameters
         # continue-on-error: true
         env:
-          EODMS_USER: ${{ secrets.USERNAME }}
-          EODMS_PASSWORD: ${{ secrets.PASSWORD }}
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_orderparameters
@@ -55,8 +55,8 @@ jobs:
       - name: Run py-eodms-rapi Test 3 - Delete Order
         # continue-on-error: true
         env:
-          EODMS_USER: ${{ secrets.USERNAME }}
-          EODMS_PASSWORD: ${{ secrets.PASSWORD }}
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_deleteorder
@@ -65,8 +65,8 @@ jobs:
       - name: Run py-eodms-rapi Test 4 - Get Available Fields
         # continue-on-error: true
         env:
-          EODMS_USER: ${{ secrets.USERNAME }}
-          EODMS_PASSWORD: ${{ secrets.PASSWORD }}
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_availablefields
