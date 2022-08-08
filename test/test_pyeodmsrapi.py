@@ -80,6 +80,7 @@ class TestEodmsRapi(unittest.TestCase):
 
         # Download images to a specific destination
         dest = "files/downloads"
+        os.makedirs(dest, exist_ok=True)
         dn_res = rapi.download(order_res, dest, max_attempts=100)
 
         # Print results
