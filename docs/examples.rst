@@ -58,7 +58,7 @@ Get Available Order Parameters for an Image
    param_res = rapi.get_order_parameters('RCMImageProducts', '7627902')
 
    # Print the parameters
-   print("param_res: %s" % param_res)
+   print(f"param_res: {param_res}")
 
 Cancel an Existing Order Item
 -----------------------------

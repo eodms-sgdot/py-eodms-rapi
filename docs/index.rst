@@ -68,6 +68,9 @@ An example to search, order and download RCM images:
 
    # Print results
    rapi.print_results(dn_res)
+   
+   # Clear search results
+   rapi.clear_results()
 
 Contents
 --------

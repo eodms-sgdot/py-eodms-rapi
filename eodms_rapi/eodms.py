@@ -1,7 +1,7 @@
 ##############################################################################
 # MIT License
 # 
-# Copyright (c) 2022 Her Majesty the Queen in Right of Canada, as
+# Copyright (c) 2020-2022 Her Majesty the Queen in Right of Canada, as
 # represented by the President of the Treasury Board
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a 
@@ -121,7 +121,7 @@ class EODMSRAPI:
     The EODMSRAPI Class containing the methods for the eodms_rapi
     """
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, show_timestamp=True):
         """
         Initializer for EODMSRAPI.
         
@@ -166,6 +166,7 @@ class EODMSRAPI:
         self.auth_err = False
         self.err_msg = None
         self.order_json = None
+        self.show_timestamp = show_timestamp
 
         self.geo = EODMSGeo(self)
 
@@ -199,7 +200,8 @@ class EODMSRAPI:
                     'IRS.CLOUD_PERCENT', 'IRS.SENS_INC', 'IRS.SBEAM'],
             'NAPL': ['ARCHIVE_IMAGE.ORDER_KEY', 'PHOTO.SBEAM',
                      'FLIGHT_SEGMENT.SCALE', 'ROLL.ROLL_NUMBER',
-                     'PHOTO.PHOTO_NUMBER', 'PREVIEW_AVAILABLE'],
+                     'PHOTO.PHOTO_NUMBER', 'CATALOG_IMAGE.OPEN_DATA',
+                     'PREVIEW_AVAILABLE'],
             'PlanetScope': ['ARCHIVE_IMAGE.ORDER_KEY',
                             'SENSOR_BEAM.SPATIAL_RESOLUTION',
                             'SATOPT.CLOUD_PERCENT', 'SATOPT.SENS_INC'],
@@ -900,11 +902,19 @@ class EODMSRAPI:
         if not self.stdout_enabled:
             return None
 
+        # Set timestamp
+        if self.show_timestamp:
+            current_time = datetime.datetime.now()
+            timestamp = f"{current_time.strftime('%Y-%m-%d %H:%M:%S')} | "
+        else:
+            timestamp = ''
+
         # Print message to terminal
         if msg_type == 'info':
-            msg = f"{out_indent}{self._header}{out_msg}"
+            msg = f"{out_indent}{self._header}{timestamp}{out_msg}"
         else:
-            msg = f"{out_indent}{self._header} {msg_type.upper()}: {out_msg}"
+            msg = f"{out_indent}{self._header}{timestamp} " \
+                  f"{msg_type.upper()}: {out_msg}"
 
         print(msg)
 
@@ -1612,7 +1622,7 @@ class EODMSRAPI:
 
         self.rapi_root = url
 
-    def download_image(self, url, dest_fn, fsize):
+    def download_image(self, url, dest_fn, fsize, show_progress=True):
         """
         Given a list of remote and local items, download the remote data if
         it is not already found locally.
@@ -1649,22 +1659,27 @@ class EODMSRAPI:
             return None
 
         # Use streamed download so we can wrap nicely with tqdm
-        with self._session.get(url, stream=True, verify=self.verify) as stream:
-            with open(dest_fn, 'wb') as pipe:
-                with tqdm.wrapattr(
-                        pipe,
-                        method='write',
-                        miniters=1,
-                        total=fsize,
-                        desc=f"{self._header}{os.path.basename(dest_fn)}"
-                ) as file_out:
-                    for chunk in stream.iter_content(chunk_size=1024):
-                        file_out.write(chunk)
+        if show_progress:
+            with self._session.get(url, stream=True, verify=self.verify) as stream:
+                with open(dest_fn, 'wb') as pipe:
+                    with tqdm.wrapattr(
+                            pipe,
+                            method='write',
+                            miniters=1,
+                            total=fsize,
+                            desc=f"{self._header}{os.path.basename(dest_fn)}"
+                    ) as file_out:
+                        for chunk in stream.iter_content(chunk_size=1024):
+                            file_out.write(chunk)
+        else:
+            response = self._session.get(url, stream=True, verify=self.verify)
+            open(dest_fn, "wb").write(response.content)
 
         msg = f'{dest_fn} has been downloaded.'
         self.log_msg(msg)
 
-    def download(self, items, dest, wait=10.0, max_attempts=None):
+    def download(self, items, dest, wait=10.0, max_attempts=None,
+                 show_progress=True):
         """
         Downloads a list of order items from the EODMS RAPI.
 
@@ -1848,9 +1863,10 @@ class EODMSRAPI:
                         full_path = os.path.realpath(out_fn)
 
                         if not os.path.exists(dest):
-                            os.mkdir(dest)
+                            os.makedirs(dest, exist_ok=True)
 
-                        self.download_image(url, out_fn, fsize)
+                        self.download_image(url, out_fn, fsize,
+                                            show_progress=show_progress)
                         print('')
 
                         # Record the URL and downloaded file to a dictionary
@@ -3154,9 +3170,12 @@ class EODMSRAPI:
                         order['dateSubmitted'] = order['dateRapiOrdered']
                         del order['dateRapiOrdered']
 
-                date_sort = sorted(filt_ords,
-                                   key=lambda d: d['dateSubmitted'],
-                                   reverse=True)
+                if 'dateSubmitted' in filt_ords[0]:
+                    date_sort = sorted(filt_ords,
+                                    key=lambda d: d['dateSubmitted'],
+                                    reverse=True)
+                else:
+                    date_sort = filt_ords
                 if rec_id not in [order['recordId'] for order in unique_orders]:
                     unique_orders.append(date_sort[0])
             else:

@@ -29,6 +29,7 @@ MANIFEST
 
 # Sphinx documentation
 docs/_build/
+docs/_pyexamples
 
 # Environments
 .env
@@ -38,3 +39,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Tests
+test/test_pyeodmsrapi.bat
+test/__pycache__

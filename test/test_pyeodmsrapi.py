@@ -80,6 +80,7 @@ class TestEodmsRapi(unittest.TestCase):
 
         # Download images to a specific destination
         dest = "files/downloads"
+        os.makedirs(dest, exist_ok=True)
         dn_res = rapi.download(order_res, dest, max_attempts=100)
 
         # Print results
@@ -148,6 +149,35 @@ class TestEodmsRapi(unittest.TestCase):
         field_titles = rapi.get_available_fields('RCMImageProducts',
                                                  name_type='title')
         print(field_titles)
+
+    def test_multiple_searches(self):
+
+        rapi = eodms_rapi.EODMSRAPI(os.getenv('EODMS_USER'),
+                                    os.environ.get('EODMS_PASSWORD'))
+
+        # Set search filters
+        filters = {'Beam Mode Type': ('LIKE', ['%50m%']),
+                   'Polarization': ('=', 'HH HV'),
+                   'Incidence Angle': ('>=', 17)}
+
+        # Submit RCMImageProducts search
+        rapi.search("RCMImageProducts", filters, max_results=2)
+
+        # Submit R1 search
+        rapi.search("Radarsat1", max_results=2)
+
+        # Get results
+        rapi.set_field_convention('upper')
+        res = rapi.get_results('full')
+
+        trim_res = [(r['RECORD_ID'], r['COLLECTION_ID']) for r in res]
+        print(f"res: {trim_res}")
+        print(f"Number of results: {len(res)}")
+
+        rapi.clear_results()
+
+        res = rapi.get_results('full')
+        print(f"Number of results: {len(res)}")
 
 if __name__ == '__main__':
     unittest.main()
