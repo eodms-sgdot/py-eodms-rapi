@@ -129,6 +129,8 @@ class EODMSRAPI:
         :type  username: str
         :param password: The password of an EODMS account.
         :type  password: str
+        :param show_timestamp: Determines whether to show a timestamp
+        :type  show_timestamp: bool
         """
 
         # Create session
@@ -179,6 +181,13 @@ class EODMSRAPI:
                               'AWAITING_PAYMENT']
 
         self.ui_field_map = {
+            'ALOS-2': ['Look Direction',
+                       'SENSOR_BEAM.SPATIAL_RESOLUTION',
+                       'ARCHIVE_IMAGE.PRODUCT_TYPE',
+                       'PRODUCT_FORMAT.FORMAT_NAME_E', 'sarsat.SBEAM',
+                       'sarsat.REC_POL', 'sarsat.TR_POL',
+                       'SENSOR_BEAM_CONFIG.INCIDENCE_HIGH',
+                       'SENSOR_BEAM_CONFIG.INCIDENCE_LOW'],
             'COSMO-SkyMed1': ['ARCHIVE_IMAGE.ORDER_KEY',
                               'SENSOR_BEAM.SPATIAL_RESOLUTION',
                               'csmed.ORBIT_ABS'],
@@ -512,10 +521,12 @@ class EODMSRAPI:
         :param max_workers: The number of threads used for retrieving the
         metadata.
         :type  max_workers: int
-        :param len_timeout: The length of
-        time in seconds before the thread returns a timeout warning.
-        :type
-        len_timeout: float
+        :param len_timeout: The length of time in seconds before the thread
+        returns a timeout warning.
+        :type len_timeout: float
+        :param show_progress: Determines whether to show the progress
+        (use tqdm) when fetching the metadata
+        :type show_progress: bool
 
         :return: A list containing the metadata for all items in the
         self.results
@@ -537,12 +548,6 @@ class EODMSRAPI:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 out_results = list(
                     tqdm(
-                        # executor.map(
-                        #     self._fetch_single_record_metadata,
-                        #     self.results,
-                        #     [len_timeout] * n_urls,
-                        #     [metadata_fields] * n_urls,
-                        # ),
                         executor.map(
                             self._fetch_single_record_metadata,
                             self.results,
@@ -1281,6 +1286,17 @@ class EODMSRAPI:
         return self._submit_search()
 
     def _check_http(self, err_msg):
+        """
+        Checks an error message for the HTTP code and returns a more
+        appropriate message.
+
+        :param err_msg: The error message from the response.
+        :type  err_msg: str
+
+        :return: The new error message (or None is no error).
+        :rtype: str (or None)
+        """
+
         if err_msg.find('404 Client Error') > -1 or \
             err_msg.find('404 for url') > -1:
             msg = f"404 Client Error: Could not find {self._rapi_url}."
@@ -1309,6 +1325,10 @@ class EODMSRAPI:
         :param record_name: A string used to supply information for the record
                             in a print statement.
         :type  record_name: str
+        :param quiet: Determines whether to ignore log printing.
+        :type  quiet: bool
+        :param as_json: Determines whether to return results in JSON format.
+        :type  as_json: bool
 
         :return: The response returned from the RAPI.
         :rtype: request.Response
@@ -1559,6 +1579,13 @@ class EODMSRAPI:
                 return k
 
     def get_err_msg(self):
+        """
+        Gets the error message of this class after an error occurred.
+
+        :return: The error message
+        :rtype: str
+        """
+
         return self.err_msg
 
     def set_query_timeout(self, timeout):
@@ -1603,7 +1630,6 @@ class EODMSRAPI:
             'camelCase'.
             - ``upper``: The format will be all uppercase with
             underscore for spaces.
-
         :type  convention: str
 
         """
@@ -1636,6 +1662,9 @@ class EODMSRAPI:
         :type  dest_fn: str
         :param fsize: The total filesize of the image.
         :type  fsize: int
+        :param show_progress: Determines whether to show progress while
+        downloading an image
+        :type  show_progress: bool
         """
 
         # If we have an existing local file, check the filesize against the
@@ -1719,6 +1748,9 @@ class EODMSRAPI:
             downloads. If None, the script will continue to check and download
             orders until all orders have been downloaded.
         :type  max_attempts: int
+        :param show_progress: Determines whether to show progress while
+        downloading an image
+        :type  show_progress: bool
 
         :return: A list of the download (completed) items.
         :rtype: list
@@ -1865,8 +1897,13 @@ class EODMSRAPI:
                         if not os.path.exists(dest):
                             os.makedirs(dest, exist_ok=True)
 
-                        self.download_image(url, out_fn, fsize,
-                                            show_progress=show_progress)
+                        try:
+                            self.download_image(url, out_fn, fsize,
+                                                show_progress=show_progress)
+                        except Exception as e:
+                            self.log_msg(e, 'warning')
+                            continue
+
                         print('')
 
                         # Record the URL and downloaded file to a dictionary
@@ -3065,6 +3102,12 @@ class EODMSRAPI:
         self.results += self.search_results
 
     def clear_results(self):
+        """
+        Clears the cumulative results.
+
+        :return: n/a
+        """
+
         self.results = []
 
     def get_results(self, form='raw', show_progress=True):
@@ -3083,6 +3126,9 @@ class EODMSRAPI:
                 (requires geojson package).
 
         :type  form: str
+        :param show_progress: Determines whether to show progress while
+        fetching metadata
+        :type  show_progress: bool
 
         :return: A dictionary of the results from self.results variable.
         :rtype:  dict
