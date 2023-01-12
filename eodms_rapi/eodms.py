@@ -261,8 +261,7 @@ class EODMSRAPI:
                                  'ARCHIVE_IMAGE.PRODUCT_TYPE', 'RCM.ORBIT_REL',
                                  'RCM.WITHIN_ORBIT_TUBE',
                                  'CATALOG_IMAGE.SEQUENCE_ID',
-                                 'RCM.SPECIAL_HANDLING_REQUIRED',
-                                 'RCM.ORBIT_DATA_SOURCE'],
+                                 'RCM.SPECIAL_HANDLING_REQUIRED'],
             'RCMScienceData': ['SENSOR_BEAM.SPATIAL_RESOLUTION',
                                'RCM.ORBIT_DIRECTION', 'RCM.INCIDENCE_ANGLE',
                                'RCM.SBEAM', 'RCM.BEAM_MNEMONIC',
@@ -745,7 +744,6 @@ class EODMSRAPI:
             for k, v in fields.items():
                 if name == k:
                     field_id = v['id']
-                    break
 
             # If field_id is still None, check to make sure the
             #   name entry is an ID
@@ -990,10 +988,9 @@ class EODMSRAPI:
                     metadata[self.get_conv(k)] = v
 
         if self.res_format == 'full':
-            if 'geometry' in image_res.keys():
-                wkt_field = self.get_conv('WKT Geometry')
-                metadata[wkt_field] = self.geo.convert_image_geom(
-                    image_res['geometry'], 'wkt')
+            wkt_field = self.get_conv('WKT Geometry')
+            metadata[wkt_field] = self.geo.convert_image_geom(
+                image_res['geometry'], 'wkt')
 
         return metadata
 
@@ -1784,7 +1781,7 @@ class EODMSRAPI:
             time.sleep(wait)
             attempt += 1
 
-            if max_attempts is not None and not max_attempts == '':
+            if max_attempts is not None:
                 if attempt > max_attempts:
                     msg = "Maximum number of attempts reached."
                     self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
@@ -1825,7 +1822,6 @@ class EODMSRAPI:
                 cur_item = self._get_item_from_orders(item_id, orders)
                 status = cur_item['status']
                 record_id = cur_item['recordId']
-                coll_id = cur_item['collectionId']
 
                 # Check record is already complete
                 if self._check_complete(complete_items, record_id):
@@ -1840,13 +1836,15 @@ class EODMSRAPI:
                             msg += f"\n    Order Item Id: " \
                                    f"{cur_item['itemId']}\n" \
                                    f"    Record Id: {cur_item['recordId']}" \
-                                   f"    Collection: {coll_id}\n"
+                                   f"    Collection: " \
+                                   f"{cur_item['collectionId']}\n"
 
                         else:
                             msg += f"\n    Order Item Id: " \
                                    f"{cur_item['itemId']}\n" \
                                    f"    Record Id: {cur_item['recordId']}\n" \
-                                   f"    Collection: {coll_id}\n" \
+                                   f"    Collection: " \
+                                   f"{cur_item['collectionId']}\n" \
                                    f"    Reason for Failure: " \
                                    f"{cur_item['statusMessage']}"
                     else:
@@ -1856,7 +1854,7 @@ class EODMSRAPI:
                               f"'{status}' and will not be downloaded:"
                         msg += f"\n    Order Item Id: {cur_item['itemId']}\n" \
                                f"    Record Id: {cur_item['recordId']}\n" \
-                               f"    Collection: {coll_id}\n"
+                               f"    Collection: {cur_item['collectionId']}\n"
 
                     self.log_msg(msg)
 
@@ -1888,8 +1886,8 @@ class EODMSRAPI:
                         fn = os.path.basename(url)
 
                         # Download the image
-                        msg = f"Downloading image from Collection {coll_id} " \
-                              f"with Record Id {record_id} ({fn})."
+                        msg = f"Downloading image with Record Id {record_id} " \
+                              f"({os.path.basename(url)})."
                         self.log_msg(msg)
 
                         # Save the image contents to the 'downloads' folder
@@ -2090,7 +2088,6 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL: {query_url}")
 
         # Send the query URL
-        # print(f"query_url: {query_url}")
         coll_res = self._submit(query_url, timeout=20.0)
 
         if coll_res is None or self.err_occurred:
