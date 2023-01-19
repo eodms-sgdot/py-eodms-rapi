@@ -41,5 +41,5 @@ env.bak/
 venv.bak/
 
 # Tests
-test/run_test.bat
+test/test_pyeodmsrapi.bat
 test/__pycache__
