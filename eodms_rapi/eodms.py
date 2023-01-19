@@ -668,6 +668,23 @@ class EODMSRAPI:
 
         return sorted_lst
 
+    def _get_cart_url(self, dests):
+        # Get the cart URL
+        str_val = dests[0]['stringValue']
+
+        str_val = str_val.replace('</br>', '')
+
+        str_val = str_val.replace('&', '?')
+
+        # Parse the HTML text of the destination string
+        root = ElementTree.fromstring(str_val)
+        dest_url = root.text
+        url = dest_url.split("?")[0]
+
+        cart_url = url.split('carts')[0] + "carts"
+
+        return cart_url, dest_url
+
     def _get_exception(self, res, output='str'):
         """
         Gets the Exception text (or XML) from an request result.
@@ -1868,22 +1885,18 @@ class EODMSRAPI:
                     cur_item['downloaded'] = 'True'
 
                     dests = cur_item['destinations']
-                    manifest_key = list(cur_item['manifest'].keys()).pop()
-                    fsize = int(cur_item['manifest'][manifest_key])
+                    manifests = cur_item['manifest']
+                    # print(f"cur_item['manifest']: {cur_item['manifest']}")
+                    manifest_keys = list(manifests.keys()) #.pop()
+                    # print(f"manifest_key: {manifest_key}")
+
+                    cart_url, dest_url = self._get_cart_url(dests)
 
                     download_paths = []
-                    for d in dests:
+                    for m in manifest_keys:
+                        fsize = int(manifests[m])
 
-                        # Get the string value of the destination
-                        str_val = d['stringValue']
-                        str_val = str_val.replace('</br>', '')
-
-                        str_val = str_val.replace('&', '?')
-
-                        # Parse the HTML text of the destination string
-                        root = ElementTree.fromstring(str_val)
-                        url = root.text
-                        url = url.split("?")[0]
+                        url = f"{cart_url}/{m}"
 
                         fn = os.path.basename(url)
 
@@ -1908,9 +1921,48 @@ class EODMSRAPI:
 
                         print('')
 
-                        # Record the URL and downloaded file to a dictionary
                         dest_info = {'url': url, 'local_destination': full_path}
                         download_paths.append(dest_info)
+
+                    # for d in dests:
+                    #
+                    #     # Get the string value of the destination
+                    #     str_val = d['stringValue']
+                    #     str_val = str_val.replace('</br>', '')
+                    #
+                    #     str_val = str_val.replace('&', '?')
+                    #
+                    #     # Parse the HTML text of the destination string
+                    #     root = ElementTree.fromstring(str_val)
+                    #     url = root.text
+                    #     url = url.split("?")[0]
+                    #
+                    #     fn = os.path.basename(url)
+                    #
+                    #     # Download the image
+                    #     msg = f"Downloading image from Collection {coll_id} " \
+                    #           f"with Record Id {record_id} ({fn})."
+                    #     self.log_msg(msg)
+                    #
+                    #     # Save the image contents to the 'downloads' folder
+                    #     out_fn = os.path.join(dest, fn)
+                    #     full_path = os.path.realpath(out_fn)
+                    #
+                    #     if not os.path.exists(dest):
+                    #         os.makedirs(dest, exist_ok=True)
+                    #
+                    #     try:
+                    #         self.download_image(url, out_fn, fsize,
+                    #                             show_progress=show_progress)
+                    #     except Exception as e:
+                    #         self.log_msg(e, 'warning')
+                    #         continue
+                    #
+                    #     print('')
+                    #
+                    #     # Record the URL and downloaded file to a dictionary
+                    #     dest_info = {'url': url, 'local_destination': full_path}
+                    #     download_paths.append(dest_info)
 
                     cur_item['downloadPaths'] = download_paths
 
