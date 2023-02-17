@@ -1823,6 +1823,7 @@ class EODMSRAPI:
             for itm in unique_items:
                 item_id = itm['itemId']
                 cur_item = self._get_item_from_orders(item_id, orders)
+                order_id = cur_item['orderId']
                 status = cur_item['status']
                 record_id = cur_item['recordId']
                 coll_id = cur_item['collectionId']
@@ -1839,12 +1840,14 @@ class EODMSRAPI:
                         if status_mess is None:
                             msg += f"\n    Order Item Id: " \
                                    f"{cur_item['itemId']}\n" \
+                                   f"    Order Id: {order_id}\n" \
                                    f"    Record Id: {cur_item['recordId']}" \
                                    f"    Collection: {coll_id}\n"
 
                         else:
                             msg += f"\n    Order Item Id: " \
                                    f"{cur_item['itemId']}\n" \
+                                   f"    Order Id: {order_id}\n" \
                                    f"    Record Id: {cur_item['recordId']}\n" \
                                    f"    Collection: {coll_id}\n" \
                                    f"    Reason for Failure: " \
