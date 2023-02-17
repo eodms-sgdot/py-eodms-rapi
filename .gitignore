@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+eodms_rapi/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -30,6 +31,10 @@ MANIFEST
 # Sphinx documentation
 docs/_build/
 docs/_pyexamples
+docs/build/
+docs/source/
+docs/make.bat
+docs/Makefile
 
 # Environments
 .env
@@ -43,3 +48,13 @@ venv.bak/
 # Tests
 test/test_pyeodmsrapi.bat
 test/__pycache__
+test/*.bat
+test/files/
+test/venv/
+
+# user specific overrides
+_update_repository.bat
+eodms_rapi/backup*/
+eodms_rapi/*.bak
+old_docs/
+*.bak
