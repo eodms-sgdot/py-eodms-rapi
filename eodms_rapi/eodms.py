@@ -859,6 +859,17 @@ class EODMSRAPI:
         if d_type == 'String':
             or_query = '%s' % ' OR '.join([f"{field_id}{op}'{v}'"
                                            for v in values])
+        elif d_type == 'Boolean':
+            vals_str = []
+            for v in values:
+                if val[0].lower().find('t') > -1 \
+                    or val[0].lower().find('y') > -1:
+                    val_query = f"{field_id}{op}True"
+                elif val[0].lower().find('f') > -1 \
+                    or val[0].lower().find('n') > -1:
+                    val_query = f"{field_id}{op}False"
+                vals_str.append(val_query)
+            or_query = '%s' % ' OR '.join(vals_str)
         elif d_type == 'DateTimeRange':
             date_vals = []
             for val in values:
@@ -1145,29 +1156,35 @@ class EODMSRAPI:
                 if not any(c in op for c in '=><'):
                     op = ' %s ' % op
 
+                if not isinstance(val, list) and not isinstance(val, tuple):
+                    val = [val]
+
                 if field == 'Incidence Angle' or field == 'Scale' or \
                         field == 'Spacial Resolution' or \
                         field == 'Absolute Orbit':
-                    if isinstance(val, list) or isinstance(val, tuple):
-                        for v in val:
-                            if v.find('-') > -1:
-                                start, end = v.split('-')
-                                val_query = self._parse_range(field_id, start,
-                                                              end)
-                            else:
-                                val_query = f"{field_id}{op}{v}"
-                            query_lst.append(val_query)
-                        continue
-                    else:
-                        if str(val).find('-') > -1:
-                            start, end = str(val).split('-')
-                            val_query = self._parse_range(field_id, start, end)
+                    for v in val:
+                        if v.find('-') > -1:
+                            start, end = v.split('-')
+                            val_query = self._parse_range(field_id, start,
+                                                            end)
                         else:
-                            val_query = f"{field_id}{op}{val}"
+                            val_query = f"{field_id}{op}{v}"
+                        query_lst.append(val_query)
+                    continue
+                    # else:
+                    #     if str(val).find('-') > -1:
+                    #         start, end = str(val).split('-')
+                    #         val_query = self._parse_range(field_id, start, end)
+                    #     else:
+                    #         val_query = f"{field_id}{op}{val}"
+
+                elif field_id == 'RCM.SPECIAL_HANDLING_REQUIRED':
+                    val_query = f"{field_id}{op}{val[0]}"
+
                 elif field == 'Footprint':
 
                     pnts = []
-                    vals = val.split(' ')
+                    vals = val[0].split(' ')
                     for idx in range(0, len(vals), 2):
                         if vals[idx].strip() == '':
                             continue
@@ -1179,17 +1196,40 @@ class EODMSRAPI:
                     val_query = f"{field_id}{op}{self.geoms}"
 
                 else:
-                    if isinstance(val, list) or isinstance(val, tuple):
+                    # Convert choice to value
+                    choices = self.get_field_choices(self.collection, 
+                                                     field_id, True)
+                    valid_vals = []
+                    for v in val:
+                        new_val = None
+                        for c in choices:
+                            if c.get('label') == v:
+                                new_val = c.get('value')
+                                valid_vals.append(new_val)
+                                break
+                        if not new_val:
+                            valid_vals.append(v)
+
+                    val = valid_vals
+
+                    if len(val) > 1:
                         val_query = self._build_or(field_id, op, val, d_type)
                     else:
                         if d_type == 'String':
-                            val_query = f"{field_id}{op}'{val}'"
+                            val_query = f"{field_id}{op}'{val[0]}'"
+                        elif d_type == 'Boolean':
+                            if val[0].lower().find('t') > -1 \
+                                or val[0].lower().find('y') > -1:
+                                val_query = f"{field_id}{op}True"
+                            elif val[0].lower().find('f') > -1 \
+                                or val[0].lower().find('n') > -1:
+                                val_query = f"{field_id}{op}False"
                         elif d_type == 'DateTimeRange':
-                            date = dateutil.parser.parse(val)
+                            date = dateutil.parser.parse(val[0])
                             iso_date = date.isoformat()
                             val_query = f"{field_id}{op}'{iso_date}'"
                         else:
-                            val_query = f"{field_id}{op}{val}"
+                            val_query = f"{field_id}{op}{val[0]}"
 
                 query_lst.append(val_query)
 
@@ -2005,7 +2045,7 @@ class EODMSRAPI:
 
         return fields
 
-    def get_field_choices(self, collection, field=None):
+    def get_field_choices(self, collection, field=None, full=False):
         """
         Gets the available choices for a specified field. If no choices exist,
         then the data type is returned.
@@ -2031,10 +2071,13 @@ class EODMSRAPI:
             if field is None:
                 field_choices = v.get('choices')
                 if field_choices is not None:
-                    for c in field_choices:
-                        value = c['value']
-                        if not value == '':
-                            choices.append(value)
+                    if full:
+                        choices = field_choices
+                    else:
+                        for c in field_choices:
+                            value = c['value']
+                            if not value == '':
+                                choices.append(value)
                     all_fields[f] = choices
                 else:
                     all_fields[f] = {'data_type': v.get('datatype')}
@@ -2042,10 +2085,13 @@ class EODMSRAPI:
                 if f == field or v['id'] == field:
                     field_choices = v.get('choices')
                     if field_choices is not None:
-                        for c in field_choices:
-                            value = c['value']
-                            if not value == '':
-                                choices.append(value)
+                        if full:
+                            choices = field_choices
+                        else:
+                            for c in field_choices:
+                                value = c['value']
+                                if not value == '':
+                                    choices.append(value)
                         return choices
                     else:
                         return {'data_type': v.get('datatype')}
@@ -2093,7 +2139,6 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL: {query_url}")
 
         # Send the query URL
-        # print(f"query_url: {query_url}")
         coll_res = self._submit(query_url, timeout=20.0)
 
         if coll_res is None or self.err_occurred:
@@ -3106,6 +3151,20 @@ class EODMSRAPI:
         self.log_msg(msg)
 
         self.results += self.search_results
+
+    def reset(self):
+        """
+        Resets specific values for the EODMSRAPI.
+
+        :return: n/a
+        """
+
+        self.clear_results()
+        self.err_msg = None
+        self.err_occurred = False
+        self.auth_err = False
+        self.order_json = None
+        self.search_results = None
 
     def clear_results(self):
         """
