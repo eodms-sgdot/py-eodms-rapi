@@ -1214,10 +1214,11 @@ class EODMSRAPI:
                     for v in val:
                         new_val = None
                         for c in choices:
-                            if c.get('label') == v:
-                                new_val = c.get('value')
-                                valid_vals.append(new_val)
-                                break
+                            if isinstance(c, dict):
+                                if c.get('label') == v:
+                                    new_val = c.get('value')
+                                    valid_vals.append(new_val)
+                                    break
                         if not new_val:
                             valid_vals.append(v)
 
