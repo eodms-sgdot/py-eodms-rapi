@@ -311,6 +311,7 @@ class EODMSGeo:
                 return self.feats
 
         # If the source is a list of coordinates
+        print(f"in_src: {in_src}")
         if not isinstance(in_src, list):
             try:
                 eval(in_src)
@@ -564,6 +565,8 @@ class EODMSGeo:
         :rtype:  str
         
         """
+
+        # print()
 
         out_feats = []
         if GDAL_INSTALLED:
