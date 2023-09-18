@@ -1,8 +1,9 @@
 from setuptools import find_packages, setup
+from eodms_rapi import __version__
 
 setup(
     name='py-eodms-rapi',
-    version='1.5.6', 
+    version=__version__, 
     author='Kevin Ballantyne (Natural Resources Canada)',
     author_email='kevin.ballantyne@nrcan-rncan.gc.ca',
     packages=find_packages(),
