@@ -80,3 +80,13 @@ jobs:
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_multiple_searches
+
+      # Runs with wrong creds
+      - name: Run py-eodms-rapi Test 6 - Wrong Creds
+        # continue-on-error: true
+        env:
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
+        run: |
+          cd test
+          python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_wrong_creds
