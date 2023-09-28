@@ -27,18 +27,14 @@
 
 
 import os
-# import sys
 import requests
-# import logging
 import logging.config
 import traceback
 import urllib
 import json
-# import csv
 import datetime
 import pytz
 import time
-# import pprint
 import dateparser
 import re
 import dateutil.parser
@@ -52,6 +48,9 @@ from warnings import warn
 from tqdm.auto import tqdm
 
 from .geo import EODMSGeo
+from .rapi_requests import RAPIRequests
+from .query_error import QueryError
+from .__version__ import __version__
 
 OTHER_FORMAT = '| %(name)s | %(levelname)s: %(message)s', '%Y-%m-%d %H:%M:%S'
 
@@ -70,50 +69,6 @@ RECORD_KEYS = ["recordId", "overviewUrl", "collectionId", "metadata2",
                "thumbnailUrl", "metadataUrl", "isGeorectified",
                "collectionTitle", "isOrderable", "thisRecordUrl",
                "metadata"]
-
-
-class QueryError:
-    """
-    The QueryError class is used to store error information for a query.
-    """
-
-    def __init__(self, msgs):
-        """
-        Initializer for QueryError object which stores an error message.
-        
-        :param msgs: The error message to print.
-        :type  msgs: str
-        """
-
-        self.msgs = msgs
-
-    def get_msgs(self, as_str=False):
-        """
-        Gets the messages stored with the QueryError.
-        
-        :param as_str: Determines whether to return a string or a list of
-        messages.
-        :type  as_str: boolean
-        
-        :return: Either a string or a list of messages.
-        :rtype: str or list
-        """
-
-        if as_str:
-            if isinstance(self.msgs, list):
-                return ' '.join(filter(None, self.msgs))
-
-        return self.msgs
-
-    def _set_msgs(self, msgs):
-        """
-        Sets the messages stored with the QueryError.
-        
-        :param msgs: Can either be a string or a list of messages.
-        :type  msgs: str or list
-        
-        """
-        self.msgs = msgs
 
 
 class EODMSRAPI:
@@ -135,8 +90,8 @@ class EODMSRAPI:
 
         # Create session
         self.collection = None
-        self._session = requests.Session()
-        self._session.auth = (username, password)
+        # self._session = requests.Session()
+        # self._session.auth = (username, password)
         self._email = 'eodms-sgdot@nrcan-rncan.gc.ca'
 
         self.rapi_root = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi"
@@ -171,11 +126,16 @@ class EODMSRAPI:
         self.show_timestamp = show_timestamp
         self.msg = ''
 
+        self.rapi_session = RAPIRequests(self, username, password)
+        self.rapi_session.add_header('User-Agent', 
+                                      f'py-eodms-rapi/{__version__}', 
+                                      True)
+
         self.geo = EODMSGeo(self)
 
         # self._map_fields()
 
-        self._header = '| EODMSRAPI | '
+        self.header = '| EODMSRAPI | '
 
         self.failed_status = ['CANCELLED', 'FAILED', 'EXPIRED',
                               'DELIVERED', 'MEDIA_ORDER_SUBMITTED',
@@ -376,7 +336,7 @@ class EODMSRAPI:
 
         if in_err is None:
             query_url = f"{self.rapi_root}/collections?format=json"
-            coll_res = self._submit(query_url, timeout=20.0)
+            coll_res = self.rapi_session.submit(query_url, timeout=20.0)
 
             # print(f"coll_res: {coll_res}")
             if isinstance(coll_res, QueryError):
@@ -469,6 +429,13 @@ class EODMSRAPI:
                 return v['id']
             elif field == v['id']:
                 return k
+    
+    def close_session(self):
+        """
+        Logs out of the EODMS RAPI
+        """
+        
+        self.rapi_session.close_session()
 
     def get_conv(self, field):
         """
@@ -545,7 +512,7 @@ class EODMSRAPI:
                             self.results,
                             [len_timeout] * n_urls,
                         ),
-                        desc=f'{self._header}Fetching result metadata',
+                        desc=f'{self.header}Fetching result metadata',
                         total=n_urls,
                         miniters=1,
                         unit='item'
@@ -577,7 +544,7 @@ class EODMSRAPI:
         """
 
         record_url = f"{record['thisRecordUrl']}?format=json"
-        r = self._submit(record_url, timeout=timeout, as_json=False)
+        r = self.rapi_session.submit(record_url, timeout=timeout, as_json=False)
 
         if r is None or self.err_occurred:
             return None
@@ -892,7 +859,8 @@ class EODMSRAPI:
         elif isinstance(messages, str):
             log_msg = out_msg = messages
         else:
-            print("EODMSRAPI.log_msg: 'messages' parameter not valid.")
+            traceback.print_exc()
+            # print("EODMSRAPI.log_msg: 'messages' parameter not valid.")
             return None
 
         # Log the message
@@ -915,9 +883,9 @@ class EODMSRAPI:
 
         # Print message to terminal
         if msg_type == 'info':
-            msg = f"{out_indent}{self._header}{timestamp}{out_msg}"
+            msg = f"{out_indent}{self.header}{timestamp}{out_msg}"
         else:
-            msg = f"{out_indent}{self._header}{timestamp} " \
+            msg = f"{out_indent}{self.header}{timestamp} " \
                       f"{msg_type.upper()}: {out_msg}"
 
         print(msg)
@@ -1283,7 +1251,7 @@ class EODMSRAPI:
         self.log_msg(msg)
 
         logger.debug(f"RAPI Query URL: {self._rapi_url}")
-        r = self._submit(self._rapi_url)
+        r = self.rapi_session.submit(self._rapi_url)
 
         # If a fatal error occurred
         if r is None or self.err_occurred:
@@ -1293,7 +1261,7 @@ class EODMSRAPI:
         if isinstance(r, QueryError):
             err_msg = r.get_msgs(True)
 
-            out_msg = self._check_http(err_msg)
+            out_msg = self.rapi_session.check_http(err_msg)
             if out_msg is not None:
                 self.log_msg(out_msg, 'warning')
                 self.search_results = r
@@ -1318,7 +1286,7 @@ class EODMSRAPI:
             self.search_results += data['results']
             return self.search_results
 
-        # Append firstResult to the URL query and run _submit_search method
+        # Append firstResult to the URL query and run self.self.rapi_session.submit_search method
         #   again
         self.search_results += data['results']
         first_result = len(self.search_results) + 1
@@ -1334,220 +1302,6 @@ class EODMSRAPI:
             self._rapi_url += f'&firstResult={first_result}'
 
         return self._submit_search()
-
-    def _check_http(self, err_msg):
-        """
-        Checks an error message for the HTTP code and returns a more
-        appropriate message.
-
-        :param err_msg: The error message from the response.
-        :type  err_msg: str
-
-        :return: The new error message (or None is no error).
-        :rtype: str (or None)
-        """
-
-        if err_msg.find('404 Client Error') > -1 or \
-            err_msg.find('404 for url') > -1:
-            msg = f"404 Client Error: Could not find {self._rapi_url}."
-        elif err_msg.find('400 Client Error') > -1:
-            msg = f"400 Client Error: A Bad Request occurred while trying to " \
-                  f"reach {self._rapi_url}"
-        elif err_msg.find('500 Server Error') > -1:
-            msg = f"500 Server Error: An internal server error has occurred " \
-                  f"while to access {self._rapi_url}"
-        elif err_msg.find('401 Client Error') > -1:
-            return err_msg
-        else:
-            return None
-
-        return msg
-
-    def _submit(self, query_url, request_type='get', post_data=None,
-                timeout=None, record_name=None, quiet=True, as_json=True):
-        """
-        Send a query to the RAPI.
-
-        :param query_url: The query URL.
-        :type  query_url: str
-        :param timeout: The length of the timeout in seconds.
-        :type  timeout: float
-        :param record_name: A string used to supply information for the record
-                            in a print statement.
-        :type  record_name: str
-        :param quiet: Determines whether to ignore log printing.
-        :type  quiet: bool
-        :param as_json: Determines whether to return results in JSON format.
-        :type  as_json: bool
-
-        :return: The response returned from the RAPI.
-        :rtype: request.Response
-        """
-
-        if timeout is None:
-            timeout = self.timeout_query
-
-        logger.debug(f"RAPI Query URL: {query_url}")
-
-        res = None
-        attempt = 1
-        err = None
-        msg = ''
-        # Get the entry records from the RAPI using the downlink segment ID
-        while res is None and attempt <= self.attempts:
-            # Continue to attempt if timeout occurs
-            try:
-                if record_name is None:
-                    msg = f"Sending request to the RAPI (attempt {attempt})..."
-                else:
-                    msg = f"Sending request to the RAPI for '{record_name}' " \
-                              f"(attempt {attempt})..."
-                if not quiet and attempt > 1:
-                    logger.debug(f"\n{self._header}{msg}")
-                if self._session is None:
-                    if request_type.lower() == 'post':
-                        res = requests.post(query_url, post_data,
-                                            timeout=timeout, verify=self.verify)
-                    elif request_type.lower() == 'put':
-                        res = requests.put(url=query_url,
-                                           timeout=timeout,
-                                           verify=self.verify)
-                    elif request_type.lower() == 'delete':
-                        res = requests.delete(url=query_url,
-                                              timeout=timeout,
-                                              verify=self.verify)
-                    else:
-                        res = requests.get(query_url, timeout=timeout,
-                                           verify=self.verify)
-                elif request_type.lower() == 'post':
-                    res = self._session.post(query_url, post_data,
-                                             timeout=timeout,
-                                             verify=self.verify)
-                elif request_type.lower() == 'put':
-                    res = self._session.put(url=query_url,
-                                            timeout=timeout,
-                                            verify=self.verify)
-                elif request_type.lower() == 'delete':
-                    res = self._session.delete(url=query_url,
-                                               timeout=timeout,
-                                               verify=self.verify)
-                else:
-                    res = self._session.get(query_url, timeout=timeout,
-                                            verify=self.verify)
-                res.raise_for_status()
-            except requests.exceptions.HTTPError as errh:
-                msg = f"HTTP Error: {errh}"
-
-                out_msg = self._check_http(msg)
-
-                if out_msg is not None:
-                    err = out_msg
-                    query_err = QueryError(err)
-
-                    return query_err if self._check_auth(query_err) else query_err
-                # elif msg.find('400 Client Error') > -1:
-                #     query_err = self._get_exception(res)
-                #
-                #     if self._check_auth(query_err):
-                #         return err
-                #
-                #     return query_err
-                # elif msg.find('500 Server Error') > -1:
-                #     query_err = self._get_exception(res)
-                #     # err = msg
-                #     # query_err = QueryError(err)
-                #
-                #     if self._check_auth(query_err):
-                #         return err
-                #
-                #     return query_err
-
-                if attempt < self.attempts:
-                    msg = f"{msg}; attempting to connect again..."
-                    self.log_msg(msg, 'warning')
-                    res = None
-                else:
-                    err = msg
-                attempt += 1
-            except requests.exceptions.SSLError as ssl_err:
-                msg = f"SSL Error: {ssl_err}"
-                if attempt < self.attempts:
-                    msg = f"{msg}; removing SSL verification and attempting " \
-                              f"to connect again..."
-                    self.log_msg(msg, 'warning')
-                    res = None
-                    self.verify = False
-                else:
-                    err = msg
-                attempt += 1
-            except (requests.exceptions.Timeout,
-                    requests.exceptions.ReadTimeout) as errt:
-                msg = f"Timeout Error: {errt}"
-                if attempt < self.attempts:
-                    msg = f"{msg}; increasing timeout by a minute and " \
-                              f"trying again..."
-                    self.log_msg(msg, 'warning')
-                    res = None
-                    timeout += 60.0
-                    self.timeout_query = timeout
-                else:
-                    err = msg
-                attempt += 1
-            except (requests.exceptions.ConnectionError,
-                    requests.exceptions.RequestException) as req_err:
-                # print(f"res: {res}")
-                self.err_msg = f"{req_err.__class__.__name__} Error: {req_err}"
-                self.err_occurred = True
-                self.log_msg(self.err_msg, 'error')
-                # attempt = self.attempts
-                return None
-            except KeyboardInterrupt:
-                self.err_msg = "Process ended by user."
-                self.log_msg(self.err_msg, out_indent='\n')
-                self.err_occurred = True
-                return None
-            except Exception:
-                msg = f"Unexpected error: {traceback.format_exc()}"
-                if attempt < self.attempts:
-                    msg = f"{msg}; attempting to connect again..."
-                    self.log_msg(msg, 'warning')
-                    res = None
-                else:
-                    err = msg
-                attempt += 1
-
-        if err is not None:
-            query_err = QueryError(err)
-
-            return None if self._check_auth(query_err) else query_err
-        # If no results from RAPI, return None
-        if res is None:
-            return None
-
-        # Check for exceptions that weren't already caught
-        if not res.ok:
-            except_err = self._get_exception(res)
-
-            if isinstance(except_err, QueryError):
-                if self._check_auth(except_err):
-                    return None
-
-                self.log_msg(msg, 'warning')
-                return except_err
-
-        if res.text == '':
-            return res
-
-        if res.text.find('BRB!') > -1:
-            self.err_msg = f"There was a problem while attempting to access the " \
-                      f"EODMS RAPI server. If the problem persists, please " \
-                      f"contact the EODMS Support Team at {self._email}."
-            self.log_msg(self.err_msg, 'error')
-            self.err_occurred = True
-            query_err = QueryError(self.err_msg)
-            return query_err
-
-        return res.json() if as_json else res
 
     def _to_camel_case(self, in_str):
         """
@@ -1642,7 +1396,7 @@ class EODMSRAPI:
         :type  timeout: float
 
         """
-        self.timeout_query = float(timeout)
+        self.rapi_session.set_query_timeout(timeout)
 
     def set_order_timeout(self, timeout):
         """
@@ -1652,7 +1406,7 @@ class EODMSRAPI:
         :type  timeout: float
 
         """
-        self.timeout_order = float(timeout)
+        self.rapi_session.set_order_timeout(timeout)
 
     def set_attempts(self, number):
         """
@@ -1663,7 +1417,7 @@ class EODMSRAPI:
         :type  number: int
 
         """
-        self.attempts = int(number)
+        self.rapi_session.set_attempts(number)
 
     def set_field_convention(self, convention):
         """
@@ -1733,22 +1487,7 @@ class EODMSRAPI:
         if self._check_auth():
             return None
 
-        # Use streamed download so we can wrap nicely with tqdm
-        if show_progress:
-            with self._session.get(url, stream=True, verify=self.verify) as stream:
-                with open(dest_fn, 'wb') as pipe:
-                    with tqdm.wrapattr(
-                            pipe,
-                            method='write',
-                            miniters=1,
-                            total=fsize,
-                            desc=f"{self._header}{os.path.basename(dest_fn)}"
-                    ) as file_out:
-                        for chunk in stream.iter_content(chunk_size=1024):
-                            file_out.write(chunk)
-        else:
-            response = self._session.get(url, stream=True, verify=self.verify)
-            open(dest_fn, "wb").write(response.content)
+        self.rapi_session.download(url, dest_fn, fsize, show_progress)
 
         self.msg = f'{dest_fn} has been downloaded.'
         self.log_msg(self.msg)
@@ -1993,7 +1732,7 @@ class EODMSRAPI:
 
         query_url = f"{self.rapi_root}/collections/{collection}?format=json"
 
-        coll_res = self._submit(query_url, timeout=20.0)
+        coll_res = self.rapi_session.submit(query_url, timeout=20.0)
 
         if coll_res is None or self.err_occurred:
             return None
@@ -2138,7 +1877,7 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL: {query_url}")
 
         # Send the query URL
-        coll_res = self._submit(query_url, timeout=20.0)
+        coll_res = self.rapi_session.submit(query_url, timeout=20.0)
 
         if coll_res is None or self.err_occurred:
             return None
@@ -2211,7 +1950,7 @@ class EODMSRAPI:
         messages = (log_msg, msg)
         self.log_msg(messages, log_indent='\n\n\t', out_indent='\n')
 
-        res = self._submit(query, timeout=self.timeout_order)
+        res = self.rapi_session.submit(query, timeout=self.timeout_order)
 
         return None if res is None or self.err_occurred else res
 
@@ -2231,7 +1970,7 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL:\n\n{query_url}\n")
 
         # Send the query to the RAPI
-        res = self._submit(query_url, timeout=self.timeout_query, quiet=False)
+        res = self.rapi_session.submit(query_url, timeout=self.timeout_query, quiet=False)
 
         if self.err_occurred:
             return None
@@ -2295,7 +2034,7 @@ class EODMSRAPI:
                 logger.debug(f"RAPI URL:\n\n{query_url}\n")
 
                 # Send the query to the RAPI
-                res = self._submit(query_url, timeout=self.timeout_query,
+                res = self.rapi_session.submit(query_url, timeout=self.timeout_query,
                                    quiet=False)
 
                 if self.err_occurred:
@@ -2332,7 +2071,7 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL:\n\n{query_url}\n")
 
         # Send the query to the RAPI
-        res = self._submit(query_url, timeout=self.timeout_query, quiet=False)
+        res = self.rapi_session.submit(query_url, timeout=self.timeout_query, quiet=False)
 
         if self.err_occurred:
             return None
@@ -2467,24 +2206,25 @@ class EODMSRAPI:
                     f"{record_id}?format=json"
 
         # Send the JSON request to the RAPI
-        try:
-            param_res = self._session.get(url=query_url, verify=self.verify)
-            param_res.raise_for_status()
-        except (requests.exceptions.HTTPError,
-                requests.exceptions.ConnectionError,
-                requests.exceptions.Timeout,
-                requests.exceptions.RequestException) as req_err:
-            msg = f"{req_err.__class__.__name__} Error: {req_err}"
-            self.log_msg(msg, 'warning')
-            return msg
-        except KeyboardInterrupt:
-            self.err_msg = "Process ended by user."
-            self.log_msg(self.err_msg, out_indent='\n')
-            self.err_occurred = True
-            print()
-            return None
+        param_res = self.rapi_session.submit(query_url)
+        # try:
+        #     param_res = self._session.get(url=query_url, verify=self.verify)
+        #     param_res.raise_for_status()
+        # except (requests.exceptions.HTTPError,
+        #         requests.exceptions.ConnectionError,
+        #         requests.exceptions.Timeout,
+        #         requests.exceptions.RequestException) as req_err:
+        #     msg = f"{req_err.__class__.__name__} Error: {req_err}"
+        #     self.log_msg(msg, 'warning')
+        #     return msg
+        # except KeyboardInterrupt:
+        #     self.err_msg = "Process ended by user."
+        #     self.log_msg(self.err_msg, out_indent='\n')
+        #     self.err_occurred = True
+        #     print()
+        #     return None
 
-        if not param_res.ok:
+        if not param_res:
             err = self._get_exception(param_res)
             if isinstance(err, list):
                 self.msg = '; '.join(err)
@@ -2494,7 +2234,7 @@ class EODMSRAPI:
         # msg = "Order removed successfully."
         # self.log_msg(msg)
 
-        return param_res.json()
+        return param_res
 
     def get_rapi_url(self):
         """ Gets the previous URL used to query the RAPI.
@@ -2525,7 +2265,7 @@ class EODMSRAPI:
         self._rapi_url = f"{self.rapi_root}/record/{self.collection}/" \
                          f"{record_id}?format=json"
 
-        self.results = self._submit(self._rapi_url)
+        self.results = self.rapi_session.submit(self._rapi_url)
 
         if self.err_occurred:
             return None
@@ -2564,7 +2304,7 @@ class EODMSRAPI:
         self._rapi_url = f"{self.rapi_root}/order/{order_id}/{item_id}"
 
         # Send the JSON request to the RAPI
-        cancel_res = self._submit(self._rapi_url, 'delete')
+        cancel_res = self.rapi_session.submit(self._rapi_url, 'delete')
 
         if self.err_occurred:
             return None
@@ -2696,7 +2436,7 @@ class EODMSRAPI:
 
         self._rapi_url = f"{self.rapi_root}/order/destinations"
         dest_json = json.dumps(dest_info)
-        dest_res = self._submit(self._rapi_url, 'post', dest_json)
+        dest_res = self.rapi_session.submit(self._rapi_url, 'post', dest_json)
 
         if self.err_occurred:
             return None
@@ -2728,7 +2468,7 @@ class EODMSRAPI:
                    f"{dest_name}"
 
         # Delete the given destination
-        dest_res = self._submit(dest_url, 'delete')
+        dest_res = self.rapi_session.submit(dest_url, 'delete')
 
         if self.err_occurred:
             return None
@@ -2840,7 +2580,7 @@ class EODMSRAPI:
         dest_url = f"{self.rapi_root}/order/destinations/{dest_type}/" \
                    f"{dest_name}"
         dest_json = json.dumps(dest_info)
-        dest_res = self._submit(dest_url, 'put', dest_json)
+        dest_res = self.rapi_session.submit(dest_url, 'put', dest_json)
 
         if self.err_occurred:
             return None
@@ -2874,7 +2614,7 @@ class EODMSRAPI:
         else:
             self._rapi_url = f"{self.rapi_root}/order/destinations"
 
-        self.results = self._submit(self._rapi_url)
+        self.results = self.rapi_session.submit(self._rapi_url)
 
         if self.err_occurred:
             return None
@@ -3362,7 +3102,8 @@ class EODMSRAPI:
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
 
         # Add the 'Content-Type' option to the header
-        self._session.headers.update({'Content-Type': 'application/json'})
+        # self._session.headers.update({'Content-Type': 'application/json'})
+        self.rapi_session.add_header('Content-Type', 'application/json')
 
         # Create the items from the list of results
         coll_key = self.get_conv('collectionId')
@@ -3413,7 +3154,8 @@ class EODMSRAPI:
             # Dump the dictionary into a JSON object
             post_json = json.dumps(p)
             logger.debug(f"RAPI POST:\n\n{post_json}\n")
-            order_res = self._submit(self._rapi_url, 'POST', post_json)
+            order_res = self.rapi_session.submit(self._rapi_url, 'POST', 
+                                                 post_json)
 
             if self.err_occurred:
                 return None
