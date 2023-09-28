@@ -429,6 +429,13 @@ class EODMSRAPI:
                 return v['id']
             elif field == v['id']:
                 return k
+    
+    def close_session(self):
+        """
+        Logs out of the EODMS RAPI
+        """
+        
+        self.rapi_session.close_session()
 
     def get_conv(self, field):
         """

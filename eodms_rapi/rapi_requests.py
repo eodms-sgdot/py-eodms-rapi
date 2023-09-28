@@ -86,6 +86,13 @@ class RAPIRequests:
 
         # self._header = '| EODMSRAPI | '
 
+    def close_session(self):
+
+        self.eodms.log_msg("Logging out of EODMS", log_indent='\n\n\t', 
+                           out_indent='\n')
+        
+        self._session.get('https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/logout.jsp')
+
     def check_http(self, err_msg):
         """
         Checks an error message for the HTTP code and returns a more
