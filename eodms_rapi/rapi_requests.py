@@ -240,7 +240,7 @@ class RAPIRequests:
                     err = out_msg
                     query_err = QueryError(err)
 
-                    return query_err if self._check_auth(query_err) \
+                    return query_err if self.eodms._check_auth(query_err) \
                         else query_err
 
                 if attempt < self.attempts:
@@ -300,7 +300,7 @@ class RAPIRequests:
         if err is not None:
             query_err = QueryError(err)
 
-            return None if self._check_auth(query_err) else query_err
+            return None if self.eodms._check_auth(query_err) else query_err
         # If no results from RAPI, return None
         if res is None:
             return None
@@ -310,7 +310,7 @@ class RAPIRequests:
             except_err = self._get_exception(res)
 
             if isinstance(except_err, QueryError):
-                if self._check_auth(except_err):
+                if self.eodms._check_auth(except_err):
                     return None
 
                 self.eodms.log_msg(msg, 'warning')
