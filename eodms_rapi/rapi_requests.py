@@ -2,7 +2,7 @@
 # MIT License
 # 
 # Copyright (c) His Majesty the King in Right of Canada, as
-# represented by the Minister of Natural Resources, 2023
+# represented by the Minister of Natural Resources, 2024
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a 
 # copy of this software and associated documentation files (the "Software"), 
@@ -53,8 +53,9 @@ class RAPIRequests:
     RAPI.
     """
 
-    def __init__(self, eodms_obj, username, password, timeout_query=120.0, 
-                 timeout_order=180.0, attempts=4, verify=True):
+    def __init__(self, eodms_obj, username=None, password=None, 
+                 timeout_query=120.0, timeout_order=180.0, attempts=4, 
+                 verify=True):
         """
         Initializer for RAPIRequests.
         
@@ -64,8 +65,10 @@ class RAPIRequests:
         self.eodms = eodms_obj
 
         # Create session
-        self._session = requests.Session()
-        self._session.auth = (username, password)
+        self._session = None
+        if username and password:
+            self._session = requests.Session()
+            self._session.auth = (username, password)
 
         self.rapi_root = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi"
 
@@ -179,6 +182,7 @@ class RAPIRequests:
             timeout = self.timeout_query
 
         self.logger.debug(f"RAPI Query URL: {query_url}")
+        # print(f"RAPI Query URL: {query_url}")
 
         res = None
         attempt = 1
@@ -228,6 +232,7 @@ class RAPIRequests:
                                                timeout=timeout,
                                                verify=self.verify)
                 else:
+                    # print(f"Cookies: {self._session.cookies}")
                     res = self._session.get(query_url, timeout=timeout,
                                             verify=self.verify)
                 res.raise_for_status()

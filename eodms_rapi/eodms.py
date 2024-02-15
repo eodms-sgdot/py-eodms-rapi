@@ -1,7 +1,7 @@
 ##############################################################################
 #
 # Copyright (c) His Majesty the King in Right of Canada, as
-# represented by the Minister of Natural Resources, 2023
+# represented by the Minister of Natural Resources, 2024
 # 
 # Licensed under the MIT license
 # (see LICENSE or <http://opensource.org/licenses/MIT>) All files in the 
@@ -60,7 +60,7 @@ class EODMSRAPI:
     The EODMSRAPI Class containing the methods for the eodms_rapi
     """
 
-    def __init__(self, username, password, show_timestamp=True):
+    def __init__(self, username=None, password=None, show_timestamp=True):
         """
         Initializer for EODMSRAPI.
         
@@ -319,8 +319,8 @@ class EODMSRAPI:
         """
 
         if in_err is None:
-            query_url = f"{self.rapi_root}/collections?format=json"
-            coll_res = self.rapi_session.submit(query_url, timeout=20.0)
+            self._rapi_url = f"{self.rapi_root}/collections?format=json"
+            coll_res = self.rapi_session.submit(self._rapi_url, timeout=20.0)
 
             # print(f"coll_res: {coll_res}")
             if isinstance(coll_res, QueryError):
@@ -1222,6 +1222,7 @@ class EODMSRAPI:
 
         # If max_results is specified, reduce the number of records in
         #   search_results to max_results and then return the search_results
+        # print(f"self.max_results: {self.max_results}")
         if self.max_results is not None:
             if len(self.search_results) >= self.max_results:
                 self.search_results = self.search_results[:self.max_results]
@@ -1234,7 +1235,8 @@ class EODMSRAPI:
         msg = f"Querying records within {start} to {end}..."
         self.log_msg(msg)
 
-        logger.debug(f"RAPI Query URL: {self._rapi_url}")
+        # logger.debug(f"RAPI Query URL: {self._rapi_url}")
+        self.log_msg(f"RAPI Query URL: {self._rapi_url}")
         r = self.rapi_session.submit(self._rapi_url)
 
         # If a fatal error occurred
@@ -2220,6 +2222,12 @@ class EODMSRAPI:
 
         return param_res
 
+    def get_rapi_metadata(self):
+        query_url = f"{self.rapi_root}/metadata"
+        res = self.rapi_session.submit(query_url)
+
+        return res
+
     def get_rapi_url(self):
         """ Gets the previous URL used to query the RAPI.
 
@@ -2701,7 +2709,7 @@ class EODMSRAPI:
         msg = f"Searching for {self.collection} images on RAPI"
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
-        print(f"RAPI URL:\n\n{self._rapi_url}\n")
+        # print(f"RAPI URL:\n\n{self._rapi_url}\n")
         # Send the query to the RAPI
         self._submit_search()
 
@@ -2832,7 +2840,7 @@ class EODMSRAPI:
 
         params['resultField'] = ','.join(result_field)
 
-        params['maxResults'] = self.limit_interval
+        # params['maxResults'] = self.limit_interval
         if max_results is None or max_results == '':
             self.max_results = None
         else:
@@ -2845,7 +2853,19 @@ class EODMSRAPI:
 
         params['format'] = "json"
 
-        query_str = urlencode(params)
+        return self._submit_search_query(params)
+
+    def _submit_search_query(self, query_params):
+
+        if 'format' not in query_params.keys():
+            query_params['format'] = 'json'
+
+        if 'maxResults' not in query_params.keys():
+            query_params['maxResults'] = self.limit_interval
+        # else:
+        #     self.max_results = int(query_params['maxResults'])
+
+        query_str = urlencode(query_params)
         self._rapi_url = f"{self.rapi_root}/search?{query_str}"
 
         # Clear self.search_results

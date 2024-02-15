@@ -12,6 +12,7 @@ _build.bat
 build/
 develop-eggs/
 dist/
+dist_backup/
 old_dist/
 downloads/
 eggs/
