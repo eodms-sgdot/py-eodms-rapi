@@ -690,5 +690,6 @@ class EODMSGeo:
             msg = "Could not open shapefile. The GDAL Python Package " \
                       "must be installed to use shapefiles."
             self.logger.warning(msg)
+            self.eodmsrapi.log_msg(msg, 'warning')
             return None
         return out_feats
