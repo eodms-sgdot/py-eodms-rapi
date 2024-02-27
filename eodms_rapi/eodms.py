@@ -87,7 +87,7 @@ class EODMSRAPI:
         self.results = []
         self.search_results = None
         self.res_mdata = None
-        self.limit_interval = 1000
+        # self.limit_interval = 1000
         self.name_conv = 'camel'
         self.res_format = 'raw'
         self.stdout_enabled = True
@@ -109,6 +109,7 @@ class EODMSRAPI:
         self.order_json = None
         self.show_timestamp = show_timestamp
         self.msg = ''
+        self.search_params = {}
 
         self.rapi_session = RAPIRequests(self, username, password)
         self.rapi_session.add_header('User-Agent', 
@@ -768,58 +769,52 @@ class EODMSRAPI:
             return False
         return True
 
-    def _build_or(self, field_id, op, values, d_type):
-        """
-        Builds an 'OR' statement for the query to the RAPI.
+    def _create_expr(self, field_id, op, value, d_type):
 
-        :param field_id: The field ID for the OR statements.
-        :type  field_id: str
-        :param op: The operator for the OR statements.
-        :type  op: str
-        :param values: A list of values for the OR statements.
-        :type  values: list
-        :param d_type: The data type of the values ('String' or something
-                        else).
-        :type  d_type: str
-
-        :return: The complete OR statement for the list of values.
-        :rtype: str
-        """
+        choices = self.get_field_choices(self.collection, field_id)
 
         if d_type == 'String':
-            or_query = '%s' % ' OR '.join([f"{field_id}{op}'{v}'"
-                                           for v in values if not v == ''])
+            # For data types which are strings
+            return f"{field_id}{op}'{value}'"
         elif d_type == 'Boolean':
-            vals_str = []
-            for v in values:
-                
-                if v == '': continue
-                
-                val_query = None
-                if v[0].lower().find('t') > -1 \
-                    or v[0].lower().find('y') > -1:
-                    val_query = f"{field_id}{op}True"
-                elif v[0].lower().find('f') > -1 \
-                    or v[0].lower().find('n') > -1:
-                    val_query = f"{field_id}{op}False"
-                
-                if val_query is None: continue
-
-                vals_str.append(val_query)
-            or_query = '%s' % ' OR '.join(vals_str)
+            if value.lower() in choices:
+                return f"{field_id}{op}'{value}'"
+            elif str(value).lower().find('t') > -1 \
+                    or str(value).lower().find('y') > -1:
+                return f"{field_id}{op}true"
+            elif str(val[0]).lower().find('f') > -1 \
+                    or str(value).lower().find('n') > -1:
+                return f"{field_id}{op}false"
         elif d_type == 'DateTimeRange':
-            date_vals = []
-            for val in values:
-                date = dateutil.parser.parse(val)
-                iso_date = date.isoformat()
-                date_vals.append(iso_date)
-            or_query = '%s' % ' OR '.join([f"{field_id}{op}'{v}'"
-                                           for v in date_vals])
+            date = dateutil.parser.parse(value)
+            iso_date = date.isoformat()
+            return f"{field_id}{op}'{iso_date}'"
         else:
-            or_query = '%s' % ' OR '.join([f"{field_id}{op}{v}"
-                                           for v in values if not v == ''])
+            return f"{field_id}{op}{value}"
 
-        return or_query
+    # def _build_or(self, field_id, op, values, d_type):
+    #     """
+    #     Builds an 'OR' statement for the query to the RAPI.
+
+    #     :param field_id: The field ID for the OR statements.
+    #     :type  field_id: str
+    #     :param op: The operator for the OR statements.
+    #     :type  op: str
+    #     :param values: A list of values for the OR statements.
+    #     :type  values: list
+    #     :param d_type: The data type of the values ('String' or something
+    #                     else).
+    #     :type  d_type: str
+
+    #     :return: The complete OR statement for the list of values.
+    #     :rtype: str
+    #     """
+
+    #     or_query = '%s' % ' OR '.join([self._create_expr(field_id, op, v, 
+    #                                                          d_type)
+    #                                        for v in values if not v == ''])
+
+    #     return or_query
 
     def log_msg(self, messages, msg_type='info', log_indent='', out_indent=''):
         """
@@ -1173,28 +1168,16 @@ class EODMSRAPI:
 
                     val = valid_vals
 
-                    # print(f"val: {val}")
-                    # print(f"d_type: {d_type}")
-
                     if len(val) > 1:
-                        val_query = self._build_or(field_id, op, val, d_type)
-                    elif d_type == 'String':
-                        val_query = f"{field_id}{op}'{val[0]}'"
-                        # print(f"val_query: {val_query}")
-                    elif d_type == 'Boolean':
-                        if str(val[0]).lower().find('t') > -1 \
-                                or str(val[0]).lower().find('y') > -1:
-                            val_query = f"{field_id}{op}True"
-                        elif str(val[0]).lower().find('f') > -1 \
-                                or str(val[0]).lower().find('n') > -1:
-                            val_query = f"{field_id}{op}False"
-                    elif d_type == 'DateTimeRange':
-                        date = dateutil.parser.parse(val[0])
-                        iso_date = date.isoformat()
-                        val_query = f"{field_id}{op}'{iso_date}'"
+                        # Combine multiple values together
+                        # val_query = self._build_or(field_id, op, val, d_type)
+                        val_query = '%s' % ' OR '.join([self._create_expr(field_id, op, v, 
+                                                             d_type)
+                                           for v in val if not v == ''])
                     else:
-                        val_query = f"{field_id}{op}{val[0]}"
-
+                        val_query = self._create_expr(field_id, op, val[0], 
+                                                      d_type)
+                
                 query_lst.append(val_query)
 
         # print(f"query_lst: {query_lst}")
@@ -1205,16 +1188,9 @@ class EODMSRAPI:
 
         return ' AND '.join(query_lst)
 
-    def _submit_search(self):
+    def _submit_search(self, show_log=True):
         """
         Submit a search query to the desired EODMS collection
-
-        Since there may be instances where the default maxResults is greater
-        than 150, this method should recursively call itself until the
-        correct number of results is retrieved.
-
-        (Adapted from: eodms-api-client (
-        https://pypi.org/project/eodms-api-client/) developed by Mike Brady)
 
         :return: The search-query response JSON from the EODMS REST API.
         :rtype:  json
@@ -1223,21 +1199,30 @@ class EODMSRAPI:
         # If max_results is specified, reduce the number of records in
         #   search_results to max_results and then return the search_results
         # print(f"self.max_results: {self.max_results}")
-        if self.max_results is not None:
-            if len(self.search_results) >= self.max_results:
-                self.search_results = self.search_results[:self.max_results]
-                return self.search_results
+        # if self.max_results is not None:
+        #     if len(self.search_results) >= self.max_results:
+        #         self.search_results = self.search_results[:self.max_results]
+        #         return self.search_results
 
         # Print status of search
-        start = len(self.search_results) + 1
-        end = len(self.search_results) + self.limit_interval
+        # start = len(self.search_results) + 1
+        # end = len(self.search_results) + self.limit_interval
 
-        msg = f"Querying records within {start} to {end}..."
-        self.log_msg(msg)
+        # msg = f"Querying records within {start} to {end}..."
+        # self.log_msg(msg)
+
+        if show_log:
+            msg = f"Querying records..."
+            self.log_msg(msg)
 
         # logger.debug(f"RAPI Query URL: {self._rapi_url}")
-        self.log_msg(f"RAPI Query URL: {self._rapi_url}")
+        if show_log:
+            self.log_msg(f"RAPI Query URL: {self._rapi_url}")
         r = self.rapi_session.submit(self._rapi_url)
+
+        if self.search_params.get('hitCount'):
+            # print(f"r: {r.json()}")
+            return r #.json() if isinstance(r, requests.Response) else r
 
         # If a fatal error occurred
         if r is None or self.err_occurred:
@@ -1260,34 +1245,36 @@ class EODMSRAPI:
 
         # If applicable, convert results to JSON
         data = r.json() if isinstance(r, requests.Response) else r
+        self.search_results = data.get('results')
         # Get the total number of results
-        tot_results = int(data['totalResults'])
+        # tot_results = int(data['totalResults'])
 
-        # If there are no results, no need to go further
-        if tot_results == 0:
-            return self.search_results
+        # # If there are no results, no need to go further
+        # if tot_results == 0:
+        #     return self.search_results
 
-        # If the number of results has hit the limit_interval, return results
-        elif tot_results < self.limit_interval:
-            self.search_results += data['results']
-            return self.search_results
+        # # If the number of results has hit the limit_interval, return results
+        # elif tot_results < self.limit_interval:
+        #     self.search_results += data['results']
+            
+        return self.search_results
 
-        # Append firstResult to the URL query and run self.self.rapi_session.submit_search method
-        #   again
-        self.search_results += data['results']
-        first_result = len(self.search_results) + 1
-        if self._rapi_url.find('&firstResult') > -1:
-            old_first_result = int(
-                re.search(r'&firstResult=([\d*]+)', self._rapi_url)[1]
-            )
-            self._rapi_url = self._rapi_url.replace(
-                '&firstResult=%d' % old_first_result,
-                '&firstResult=%d' % first_result
-            )
-        else:
-            self._rapi_url += f'&firstResult={first_result}'
+        # # Append firstResult to the URL query and run self.self.rapi_session.submit_search method
+        # #   again
+        # self.search_results += data['results']
+        # first_result = len(self.search_results) + 1
+        # if self._rapi_url.find('&firstResult') > -1:
+        #     old_first_result = int(
+        #         re.search(r'&firstResult=([\d*]+)', self._rapi_url)[1]
+        #     )
+        #     self._rapi_url = self._rapi_url.replace(
+        #         '&firstResult=%d' % old_first_result,
+        #         '&firstResult=%d' % first_result
+        #     )
+        # else:
+        #     self._rapi_url += f'&firstResult={first_result}'
 
-        return self._submit_search()
+        # return self._submit_search()
 
     def _to_camel_case(self, in_str):
         """
@@ -2733,7 +2720,8 @@ class EODMSRAPI:
         self.results += self.search_results
 
     def search(self, collection, filters=None, features=None, dates=None,
-               result_fields=None, max_results=None):
+               result_fields=None, max_results=None, first_result=None, 
+               hit_count=False):
         """
         Sends a search to the RAPI to search for image results.
 
@@ -2780,6 +2768,10 @@ class EODMSRAPI:
         :param max_results: The maximum number of results to return from the
             query.
         :type  max_results: str or int
+        :param first_result: Specifies the starting index for the search.
+        :type  first_result: str or int
+        :param hit_count: Returns only the hit count for the search request.
+        :type  hit_count: boolean
 
         """
 
@@ -2791,10 +2783,11 @@ class EODMSRAPI:
         if self.collection is None or self.err_occurred:
             return None
 
-        params = {'collection': self.collection}
+        self.search_params = {'collection': self.collection}
 
         if filters is not None or features is not None or dates is not None:
-            params['query'] = self._parse_query(filters, features, dates)
+            self.search_params['query'] = self._parse_query(filters, features, 
+                                                            dates)
             if self.err_occurred:
                 return None
         # print(f"query: {params['query']}")
@@ -2838,44 +2831,64 @@ class EODMSRAPI:
         if dl_id is not None:
             result_field.append(dl_id)
 
-        params['resultField'] = ','.join(result_field)
+        self.search_params['resultField'] = ','.join(result_field)
 
         # params['maxResults'] = self.limit_interval
+        # print(f"max_results: {max_results}")
         if max_results is None or max_results == '':
             self.max_results = None
         else:
             self.max_results = int(max_results)
 
-            if self.max_results is not None:
-                params['maxResults'] = self.max_results \
-                    if int(self.max_results) < int(self.limit_interval) \
-                    else self.limit_interval
+        if first_result is not None:
+            self.search_params['firstResult'] = first_result
 
-        params['format'] = "json"
+        # print(f"self.max_results: {self.max_results}")
 
-        return self._submit_search_query(params)
+            # if self.max_results is not None:
+            #     params['maxResults'] = self.max_results \
+            #         if int(self.max_results) < int(self.limit_interval) \
+            #         else self.limit_interval
 
-    def _submit_search_query(self, query_params):
+        self.search_params['format'] = "json"
 
-        if 'format' not in query_params.keys():
-            query_params['format'] = 'json'
+        if hit_count:
+            self.search_params['hitCount'] = 'true'
 
-        if 'maxResults' not in query_params.keys():
-            query_params['maxResults'] = self.limit_interval
+        return self._submit_search_query()
+
+    def _submit_search_query(self):
+
+        if 'format' not in self.search_params.keys():
+            self.search_params['format'] = 'json'
+
+        # if 'maxResults' not in query_params.keys():
+        #     query_params['maxResults'] = self.limit_interval
         # else:
         #     self.max_results = int(query_params['maxResults'])
+            
+        if self.max_results:
+            self.search_params['maxResults'] = self.max_results
 
-        query_str = urlencode(query_params)
+        query_str = urlencode(self.search_params)
         self._rapi_url = f"{self.rapi_root}/search?{query_str}"
 
         # Clear self.search_results
         self.search_results = []
 
-        msg = f"Searching for {self.collection} images on RAPI"
-        self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-        logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
+        show_log = False
+        if not self.search_params.get('hitCount'):
+            show_log = True
+
+        if show_log:
+            msg = f"Searching for {self.collection} images on RAPI"
+            self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+            logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
         # Send the query to the RAPI
-        self._submit_search()
+        src_res = self._submit_search(show_log)
+
+        if self.search_params.get('hitCount'):
+            return src_res
 
         self.res_mdata = None
 
