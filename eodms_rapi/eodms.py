@@ -100,7 +100,7 @@ class EODMSRAPI:
         self.dates = None
         self.feats = None
         self.max_results = None
-        self._rapi_url = None
+        self.rapi_url = None
         self.start = datetime.datetime.now()
         self.logger = logger
         self.err_occurred = False
@@ -320,8 +320,8 @@ class EODMSRAPI:
         """
 
         if in_err is None:
-            self._rapi_url = f"{self.rapi_root}/collections?format=json"
-            coll_res = self.rapi_session.submit(self._rapi_url, timeout=20.0)
+            self.rapi_url = f"{self.rapi_root}/collections?format=json"
+            coll_res = self.rapi_session.submit(self.rapi_url, timeout=20.0)
 
             # print(f"coll_res: {coll_res}")
             if isinstance(coll_res, QueryError):
@@ -792,30 +792,6 @@ class EODMSRAPI:
         else:
             return f"{field_id}{op}{value}"
 
-    # def _build_or(self, field_id, op, values, d_type):
-    #     """
-    #     Builds an 'OR' statement for the query to the RAPI.
-
-    #     :param field_id: The field ID for the OR statements.
-    #     :type  field_id: str
-    #     :param op: The operator for the OR statements.
-    #     :type  op: str
-    #     :param values: A list of values for the OR statements.
-    #     :type  values: list
-    #     :param d_type: The data type of the values ('String' or something
-    #                     else).
-    #     :type  d_type: str
-
-    #     :return: The complete OR statement for the list of values.
-    #     :rtype: str
-    #     """
-
-    #     or_query = '%s' % ' OR '.join([self._create_expr(field_id, op, v, 
-    #                                                          d_type)
-    #                                        for v in values if not v == ''])
-
-    #     return or_query
-
     def log_msg(self, messages, msg_type='info', log_indent='', out_indent=''):
         """
         Logs a message to the logger.
@@ -1196,29 +1172,14 @@ class EODMSRAPI:
         :rtype:  json
         """
 
-        # If max_results is specified, reduce the number of records in
-        #   search_results to max_results and then return the search_results
-        # print(f"self.max_results: {self.max_results}")
-        # if self.max_results is not None:
-        #     if len(self.search_results) >= self.max_results:
-        #         self.search_results = self.search_results[:self.max_results]
-        #         return self.search_results
-
-        # Print status of search
-        # start = len(self.search_results) + 1
-        # end = len(self.search_results) + self.limit_interval
-
-        # msg = f"Querying records within {start} to {end}..."
-        # self.log_msg(msg)
-
         if show_log:
             msg = f"Querying records..."
             self.log_msg(msg)
 
-        # logger.debug(f"RAPI Query URL: {self._rapi_url}")
+        # logger.debug(f"RAPI Query URL: {self.rapi_url}")
         if show_log:
-            self.log_msg(f"RAPI Query URL: {self._rapi_url}")
-        r = self.rapi_session.submit(self._rapi_url)
+            self.log_msg(f"RAPI Query URL: {self.rapi_url}")
+        r = self.rapi_session.submit(self.rapi_url)
 
         if self.search_params.get('hitCount'):
             # print(f"r: {r.json()}")
@@ -1246,35 +1207,8 @@ class EODMSRAPI:
         # If applicable, convert results to JSON
         data = r.json() if isinstance(r, requests.Response) else r
         self.search_results = data.get('results')
-        # Get the total number of results
-        # tot_results = int(data['totalResults'])
-
-        # # If there are no results, no need to go further
-        # if tot_results == 0:
-        #     return self.search_results
-
-        # # If the number of results has hit the limit_interval, return results
-        # elif tot_results < self.limit_interval:
-        #     self.search_results += data['results']
             
         return self.search_results
-
-        # # Append firstResult to the URL query and run self.self.rapi_session.submit_search method
-        # #   again
-        # self.search_results += data['results']
-        # first_result = len(self.search_results) + 1
-        # if self._rapi_url.find('&firstResult') > -1:
-        #     old_first_result = int(
-        #         re.search(r'&firstResult=([\d*]+)', self._rapi_url)[1]
-        #     )
-        #     self._rapi_url = self._rapi_url.replace(
-        #         '&firstResult=%d' % old_first_result,
-        #         '&firstResult=%d' % first_result
-        #     )
-        # else:
-        #     self._rapi_url += f'&firstResult={first_result}'
-
-        # return self._submit_search()
 
     def _to_camel_case(self, in_str):
         """
@@ -1539,19 +1473,7 @@ class EODMSRAPI:
                     self.log_msg(self.msg, log_indent='\n\n\t', out_indent='\n')
                     return complete_items
 
-            # start, end = self._get_dateRange(unique_items)
-            # orders = self.get_orders(dtstart=start, dtend=end)
-            # print(f"max_downloads: {max_downloads}")
-            # answer = input("Press enter...")
-            # max_orders = max_downloads + int((max_downloads / 4))
-            # orders = self.get_orders(max_orders=max_orders)
             orders = self.get_orders(unique_items)
-
-            # for order in orders:
-            #     print(f"itemId: {order.get('itemId')}")
-            #     print(f"  orderId: {order.get('orderId')}")
-            #     print(f"  recordId: {order.get('recordId')}")
-            # answer = input("Press enter...")
 
             if self.err_occurred:
                 return complete_items
@@ -2089,20 +2011,8 @@ class EODMSRAPI:
             return None
 
         if not all("orderId" in keys for keys in records):
-            # msg = "Cannot get orders as no orderId is provided in the " \
-            #       "results."
             orders = self.get_orders()
-            # self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
         else:
-
-            # dates = self._get_date_range(records)
-            #
-            # if dates is None:
-            #     msg = "Cannot get orders as no order dates are available."
-            #     self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-            #     return None
-            #
-            # start, end = dates
 
             orders = self.get_orders(records)
 
@@ -2180,22 +2090,6 @@ class EODMSRAPI:
 
         # Send the JSON request to the RAPI
         param_res = self.rapi_session.submit(query_url)
-        # try:
-        #     param_res = self._session.get(url=query_url, verify=self.verify)
-        #     param_res.raise_for_status()
-        # except (requests.exceptions.HTTPError,
-        #         requests.exceptions.ConnectionError,
-        #         requests.exceptions.Timeout,
-        #         requests.exceptions.RequestException) as req_err:
-        #     msg = f"{req_err.__class__.__name__} Error: {req_err}"
-        #     self.log_msg(msg, 'warning')
-        #     return msg
-        # except KeyboardInterrupt:
-        #     self.err_msg = "Process ended by user."
-        #     self.log_msg(self.err_msg, out_indent='\n')
-        #     self.err_occurred = True
-        #     print()
-        #     return None
 
         if not param_res:
             err = self._get_exception(param_res)
@@ -2222,7 +2116,7 @@ class EODMSRAPI:
         rtype: str
         """
 
-        return self._rapi_url
+        return self.rapi_url
 
     def get_record(self, collection, record_id, output='full'):
         """
@@ -2241,10 +2135,10 @@ class EODMSRAPI:
 
         self.collection = self.get_collection_id(collection)
 
-        self._rapi_url = f"{self.rapi_root}/record/{self.collection}/" \
+        self.rapi_url = f"{self.rapi_root}/record/{self.collection}/" \
                          f"{record_id}?format=json"
 
-        self.results = self.rapi_session.submit(self._rapi_url)
+        self.results = self.rapi_session.submit(self.rapi_url)
 
         if self.err_occurred:
             return None
@@ -2280,31 +2174,13 @@ class EODMSRAPI:
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
 
         # Set the RAPI URL
-        self._rapi_url = f"{self.rapi_root}/order/{order_id}/{item_id}"
+        self.rapi_url = f"{self.rapi_root}/order/{order_id}/{item_id}"
 
         # Send the JSON request to the RAPI
-        cancel_res = self.rapi_session.submit(self._rapi_url, 'delete')
+        cancel_res = self.rapi_session.submit(self.rapi_url, 'delete')
 
         if self.err_occurred:
             return None
-
-        # try:
-        #     cancel_res = self._session.delete(url=self._rapi_url)
-        #     cancel_res.raise_for_status()
-        # except (requests.exceptions.HTTPError,
-        #         requests.exceptions.ConnectionError,
-        #         requests.exceptions.Timeout,
-        #         requests.exceptions.RequestException) as req_err:
-        #     err = self._get_exception(cancel_res).get_msgs()
-        #     msg = f"{req_err.__class__.__name__} Error: {req_err} - {err[1]}"
-        #     self.log_msg(msg, 'warning')
-        #     return msg
-        # except KeyboardInterrupt:
-        #     msg = "Process ended by user."
-        #     self.log_msg(msg, out_indent='\n')
-        #     self.err_occurred = True
-        #     print()
-        #     return None
 
         if not cancel_res.ok:
             err = self._get_exception(cancel_res)
@@ -2413,9 +2289,9 @@ class EODMSRAPI:
             if classification:
                 dest_info['classification'] = classification
 
-        self._rapi_url = f"{self.rapi_root}/order/destinations"
+        self.rapi_url = f"{self.rapi_root}/order/destinations"
         dest_json = json.dumps(dest_info)
-        dest_res = self.rapi_session.submit(self._rapi_url, 'post', dest_json)
+        dest_res = self.rapi_session.submit(self.rapi_url, 'post', dest_json)
 
         if self.err_occurred:
             return None
@@ -2588,12 +2464,12 @@ class EODMSRAPI:
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
 
         if collection is not None:
-            self._rapi_url = f"{self.rapi_root}/order/destinations?" \
+            self.rapi_url = f"{self.rapi_root}/order/destinations?" \
                              f"collection={collection}&recordId={record_id}"
         else:
-            self._rapi_url = f"{self.rapi_root}/order/destinations"
+            self.rapi_url = f"{self.rapi_root}/order/destinations"
 
-        self.results = self.rapi_session.submit(self._rapi_url)
+        self.results = self.rapi_session.submit(self.rapi_url)
 
         if self.err_occurred:
             return None
@@ -2688,15 +2564,15 @@ class EODMSRAPI:
             params['resultField'] = ','.join(result_fields)
 
         query_str = urlencode(params)
-        self._rapi_url = f"{self.rapi_root}/search?{query_str}"
+        self.rapi_url = f"{self.rapi_root}/search?{query_str}"
 
         # Clear self.search_results
         self.search_results = []
 
         msg = f"Searching for {self.collection} images on RAPI"
         self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-        logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
-        # print(f"RAPI URL:\n\n{self._rapi_url}\n")
+        logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
+
         # Send the query to the RAPI
         self._submit_search()
 
@@ -2871,7 +2747,7 @@ class EODMSRAPI:
             self.search_params['maxResults'] = self.max_results
 
         query_str = urlencode(self.search_params)
-        self._rapi_url = f"{self.rapi_root}/search?{query_str}"
+        self.rapi_url = f"{self.rapi_root}/search?{query_str}"
 
         # Clear self.search_results
         self.search_results = []
@@ -2883,7 +2759,7 @@ class EODMSRAPI:
         if show_log:
             msg = f"Searching for {self.collection} images on RAPI"
             self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
-            logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
+            logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
         # Send the query to the RAPI
         src_res = self._submit_search(show_log)
 
@@ -3159,9 +3035,9 @@ class EODMSRAPI:
                         "items": items[i:i + 100]} for i in range(0, len(items),
                                                                   100)]
         # Set the RAPI URL for the POST
-        self._rapi_url = f"{self.rapi_root}/order"
+        self.rapi_url = f"{self.rapi_root}/order"
 
-        logger.debug(f"RAPI URL:\n\n{self._rapi_url}\n")
+        logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
 
         # Send the JSON request to the RAPI
         time_submitted = datetime.datetime.now(tzlocal()).isoformat()
@@ -3171,7 +3047,7 @@ class EODMSRAPI:
             # Dump the dictionary into a JSON object
             post_json = json.dumps(p)
             logger.debug(f"RAPI POST:\n\n{post_json}\n")
-            order_res = self.rapi_session.submit(self._rapi_url, 'POST', 
+            order_res = self.rapi_session.submit(self.rapi_url, 'POST', 
                                                  post_json)
 
             if self.err_occurred:
