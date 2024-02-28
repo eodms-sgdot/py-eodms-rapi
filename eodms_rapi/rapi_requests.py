@@ -110,13 +110,13 @@ class RAPIRequests:
 
         if err_msg.find('404 Client Error') > -1 or \
             err_msg.find('404 for url') > -1:
-            msg = f"404 Client Error: Could not find {self._rapi_url}."
+            msg = f"404 Client Error: Could not find {self.eodms.rapi_url}."
         elif err_msg.find('400 Client Error') > -1:
             msg = f"400 Client Error: A Bad Request occurred while trying to " \
-                  f"reach {self._rapi_url}"
+                  f"reach {self.eodms.rapi_url}"
         elif err_msg.find('500 Server Error') > -1:
             msg = f"500 Server Error: An internal server error has occurred " \
-                  f"while to access {self._rapi_url}"
+                  f"while to access {self.eodms.rapi_url}"
         elif err_msg.find('401 Client Error') > -1:
             return err_msg
         else:
