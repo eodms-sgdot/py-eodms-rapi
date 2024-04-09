@@ -1,4 +1,5 @@
 requests>=2.23.0
 tqdm>=4.59.0
 dateparser>=1.0.0
+lxml>=5.2.1
 py-eodms-rapi
