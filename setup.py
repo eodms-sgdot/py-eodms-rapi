@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='py-eodms-rapi',
-    version='1.7.1', 
+    version='1.8.0', 
     author='Kevin Ballantyne (Natural Resources Canada)',
     author_email='kevin.ballantyne@nrcan-rncan.gc.ca',
     packages=find_packages(),
@@ -19,6 +19,7 @@ setup(
         "requests",
         "tqdm",
         "geomet",
+        "lxml",
     ],
     project_urls={
         "Source": "https://github.com/eodms-sgdot/py-eodms-rapi", 

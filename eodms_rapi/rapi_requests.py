@@ -327,7 +327,7 @@ class RAPIRequests:
         if res.text.find('BRB!') > -1:
             self.err_msg = f"There was a problem while attempting to access the " \
                       f"EODMS RAPI server. If the problem persists, please " \
-                      f"contact the EODMS Support Team at {self._email}."
+                      f"contact the EODMS Support Team at {self.eodms._email}."
             self.eodms.log_msg(self.err_msg, 'error')
             self.err_occurred = True
             query_err = QueryError(self.err_msg)
@@ -366,7 +366,7 @@ class RAPIRequests:
         """
         self.attempts = int(number)
 
-    def download(self, url, dest_fn, fsize, show_progress=True):
+    def download(self, url, fsize=None, dest_fn=None, show_progress=True):
         """
         Given a list of remote and local items, download the remote data if
         it is not already found locally.
@@ -383,23 +383,29 @@ class RAPIRequests:
         :param show_progress: Determines whether to show progress while
         downloading an image
         :type  show_progress: bool
+        :param no_file: Determines whether to download as a file.
+        :type  no_file: bool
         """
 
         # Use streamed download so we can wrap nicely with tqdm
         if show_progress:
-            with self._session.get(url, stream=True, verify=self.verify) as stream:
+            with self._session.get(url, stream=True, verify=self.verify) \
+                    as stream:
                 with open(dest_fn, 'wb') as pipe:
                     with tqdm.wrapattr(
                             pipe,
                             method='write',
                             miniters=1,
                             total=fsize,
-                            desc=f"{self.eodms.header}{os.path.basename(dest_fn)}"
+                            desc=f"{self.eodms.header}\
+                                {os.path.basename(dest_fn)}"
                     ) as file_out:
                         for chunk in stream.iter_content(chunk_size=1024):
                             file_out.write(chunk)
         else:
             response = self._session.get(url, stream=True, verify=self.verify)
+            if dest_fn is None:
+                return response.content
             open(dest_fn, "wb").write(response.content)
 
         return dest_fn

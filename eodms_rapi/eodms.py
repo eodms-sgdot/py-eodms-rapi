@@ -21,9 +21,10 @@ import pytz
 import time
 import dateparser
 import re
+from lxml import html, etree
 import dateutil.parser
 from dateutil.tz import tzlocal
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 # from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
 from xml.etree import ElementTree
@@ -1355,6 +1356,106 @@ class EODMSRAPI:
 
         self.rapi_root = url
 
+    def _check_exists(self, dest_fn, fsize):
+        """
+        Compares the fsize variable to the size of a file.
+        """
+
+        # print(f"dest_fn: {dest_fn}")
+        # print(os.path.exists(dest_fn))
+        if os.path.exists(dest_fn):
+            # if all-good, continue to next file
+            print(f"os.stat: {os.stat(dest_fn).st_size}")
+            if os.stat(dest_fn).st_size == fsize:
+                self.msg = f"No download necessary. Local file already " \
+                    f"exists: {dest_fn}"
+                self.log_msg(self.msg)
+                return True
+            # Otherwise, delete the incomplete/malformed local file and
+            #   redownload
+            else:
+                self.msg = f'Filesize mismatch with ' \
+                    f'{os.path.basename(dest_fn)}. Re-downloading...'
+                self.log_msg(self.msg, 'warning')
+                os.remove(dest_fn)
+
+        return False
+
+    def download_folder(self, url, dest_folder, fsize=None, show_progress=True):
+        """
+        Downloads the contents of an online folder to the dest_folder.
+
+        :param url: The download URL of the image.
+        :type  url: str
+        :param dest_folder: The local destination folder for the download.
+        :type  dest_folder: str
+        :param fsize: The total filesize of the image.
+        :type  fsize: int
+        :param show_progress: Determines whether to show progress while
+        downloading an image
+        :type  show_progress: bool
+        """
+
+        print(f"Downloading folder...")
+
+        # print(f"dest_folder: {dest_folder}")
+
+         # If we have an existing local file, check the filesize against the
+        #   manifest
+        # if self._check_exists(dest_folder, fsize):
+        #     return None
+
+        if self._check_auth():
+            return None
+
+        if not os.path.exists(dest_folder):
+            os.makedirs(dest_folder)
+        
+        # print(f"url: {url}")
+
+        domain = urlparse(url).netloc
+
+        html_str = self.rapi_session.download(url, fsize, show_progress=False)
+
+        # print(f"html_str: {html_str}")
+
+        # Parse the HTML text of the destination string
+        html = etree.HTML(html_str.decode('utf-8'))
+        # result = etree.tostring(html, pretty_print=True, method="html")
+
+        # print(f"html: {dir(html)}")
+
+        links = [a for a in html.iterfind(".//a")]
+
+        # print(f"links: {links}")
+
+        for l in links[1:]:
+            href = f"https://{domain}{l.get('href')}"
+            href = href.rstrip('/')
+            
+            # print(f"href: {href}")
+
+            path = urlparse(href).path
+            ext = os.path.splitext(path)[1]
+            # print(ext)
+
+            if ext == '':
+                new_dest = os.path.join(dest_folder, os.path.basename(href))
+                # print(f"new_dest: {new_dest}")
+                self.download_folder(href, new_dest,
+                                     show_progress=show_progress)
+                continue
+
+            dest_fn = os.path.join(dest_folder, os.path.basename(href))
+
+            # print(f"dest_fn: {dest_fn}")
+
+            self.rapi_session.download(href, dest_fn=dest_fn,
+                                       show_progress=show_progress)
+
+            self.msg = f'{dest_fn} has been downloaded.'
+            self.log_msg(self.msg)
+
     def download_image(self, url, dest_fn, fsize, show_progress=True):
         """
         Given a list of remote and local items, download the remote data if
@@ -1376,25 +1477,16 @@ class EODMSRAPI:
 
         # If we have an existing local file, check the filesize against the
         #   manifest
-        if os.path.exists(dest_fn):
-            # if all-good, continue to next file
-            if os.stat(dest_fn).st_size == fsize:
-                self.msg = f"No download necessary. Local file already " \
-                    f"exists: {dest_fn}"
-                self.log_msg(self.msg)
-                return None
-            # Otherwise, delete the incomplete/malformed local file and
-            #   redownload
-            else:
-                self.msg = f'Filesize mismatch with ' \
-                    f'{os.path.basename(dest_fn)}. Re-downloading...'
-                self.log_msg(self.msg, 'warning')
-                os.remove(dest_fn)
+        if self._check_exists(dest_fn, fsize):
+            return None
 
         if self._check_auth():
             return None
+        
+        # print(f"url: {url}")
+        # answer = input("Press enter...")
 
-        self.rapi_session.download(url, dest_fn, fsize, show_progress)
+        self.rapi_session.download(url, fsize, dest_fn, show_progress)
 
         self.msg = f'{dest_fn} has been downloaded.'
         self.log_msg(self.msg)
@@ -1551,8 +1643,9 @@ class EODMSRAPI:
                         str_val = str_val.replace('&', '?')
 
                         # Parse the HTML text of the destination string
-                        root = ElementTree.fromstring(str_val)
+                        root = etree.fromstring(str_val)
                         url = root.text
+                        # url = root.tostring(root)
                         url = url.split("?")[0]
 
                         fn = os.path.basename(url)
@@ -1570,8 +1663,12 @@ class EODMSRAPI:
                             os.makedirs(dest, exist_ok=True)
 
                         try:
-                            self.download_image(url, out_fn, fsize,
-                                                show_progress=show_progress)
+                            if url.endswith('.zip'):
+                                self.download_image(url, out_fn, fsize,
+                                                    show_progress=show_progress)
+                            else:
+                                self.download_folder(url, out_fn, fsize,
+                                                    show_progress=show_progress)
                         except Exception as e:
                             self.log_msg(e, 'warning')
                             continue
@@ -1580,6 +1677,8 @@ class EODMSRAPI:
 
                         # Record the URL and downloaded file to a dictionary
                         dest_info = {'url': url, 'local_destination': full_path}
+                        # print(f"dest_info: {dest_info}")
+                        # answer = input("Press enter...")
                         download_paths.append(dest_info)
 
                     cur_item['downloadPaths'] = download_paths
