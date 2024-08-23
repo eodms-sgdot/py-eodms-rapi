@@ -294,12 +294,29 @@ class EODMSRAPI:
 
     ###############################################################
 
-    def _check_complete(self, complete_items, record_id):
+    # def _check_complete(self, complete_items, record_id):
+    #     """
+    #     Checks if an order item has already been downloaded.
+
+    #     :param complete_items: A list of completed order items.
+    #     :type  complete_items: list
+    #     :param record_id: The record ID of the image.
+    #     :type  record_id: int
+
+    #     :return: True if already downloaded, False if not.
+    #     :rtype: boolean
+    #     """
+
+    #     return any(i['recordId'] == record_id for i in complete_items)
+
+    def _check_complete(self, complete_items, item_id, record_id):
         """
         Checks if an order item has already been downloaded.
 
         :param complete_items: A list of completed order items.
         :type  complete_items: list
+        :param item_id: The Order Item ID of the image.
+        :type  item_id: int
         :param record_id: The record ID of the image.
         :type  record_id: int
 
@@ -307,7 +324,15 @@ class EODMSRAPI:
         :rtype: boolean
         """
 
-        return any(i['recordId'] == record_id for i in complete_items)
+        # print(f"complete_items: {complete_items}")
+
+        complete_item_all = [i['itemId'] for i in complete_items]
+        complete_item_ids = [i['itemId'] for i in complete_items 
+                             if str(i['recordId']) == str(record_id)]
+        parent_ids = [i.get('parameters').get('ParentItemId') 
+                      for i in complete_items]
+
+        return item_id in complete_item_ids or item_id in parent_ids
 
     def _check_auth(self, in_err=None):
         """
@@ -1365,21 +1390,20 @@ class EODMSRAPI:
         # print(os.path.exists(dest_fn))
         if os.path.exists(dest_fn):
             # if all-good, continue to next file
-            print(f"os.stat: {os.stat(dest_fn).st_size}")
+            # print(f"os.stat: {os.stat(dest_fn).st_size}")
             if os.stat(dest_fn).st_size == fsize:
                 self.msg = f"No download necessary. Local file already " \
                     f"exists: {dest_fn}"
                 self.log_msg(self.msg)
-                return True
+                return None
             # Otherwise, delete the incomplete/malformed local file and
             #   redownload
-            else:
-                self.msg = f'Filesize mismatch with ' \
-                    f'{os.path.basename(dest_fn)}. Re-downloading...'
-                self.log_msg(self.msg, 'warning')
-                os.remove(dest_fn)
+            self.msg = f'Filesize mismatch with ' \
+                f'{os.path.basename(dest_fn)}. Re-downloading...'
+            self.log_msg(self.msg, 'warning')
+            os.remove(dest_fn)
 
-        return False
+        return dest_fn
 
     def download_folder(self, url, dest_folder, fsize=None, show_progress=True):
         """
@@ -1396,7 +1420,7 @@ class EODMSRAPI:
         :type  show_progress: bool
         """
 
-        print(f"Downloading folder...")
+        self.log_msg(f"Downloading folder {os.path.basename(url)}...")
 
         # print(f"dest_folder: {dest_folder}")
 
@@ -1435,13 +1459,23 @@ class EODMSRAPI:
             
             # print(f"href: {href}")
 
-            path = urlparse(href).path
-            ext = os.path.splitext(path)[1]
+            resp_header = self.rapi_session.get_header(href)
+
+            entry_type = resp_header.headers.get('Entry-Type')
+
+            # print(f"entry_type: {entry_type}")
+
+            # path = urlparse(href).path
+            # ext = os.path.splitext(path)[1]
             # print(ext)
 
-            if ext == '':
+            if entry_type == "Directory":
                 new_dest = os.path.join(dest_folder, os.path.basename(href))
                 # print(f"new_dest: {new_dest}")
+
+                if os.path.basename(dest_folder).find(os.path.basename(href)) > -1:
+                    new_dest = dest_folder
+
                 self.download_folder(href, new_dest,
                                      show_progress=show_progress)
                 continue
@@ -1477,7 +1511,7 @@ class EODMSRAPI:
 
         # If we have an existing local file, check the filesize against the
         #   manifest
-        if self._check_exists(dest_fn, fsize):
+        if not self._check_exists(dest_fn, fsize):
             return None
 
         if self._check_auth():
@@ -1588,7 +1622,7 @@ class EODMSRAPI:
                 coll_id = cur_item['collectionId']
 
                 # Check record is already complete
-                if self._check_complete(complete_items, record_id):
+                if self._check_complete(complete_items, item_id, record_id):
                     continue
 
                 if status in self.failed_status:
@@ -1651,7 +1685,10 @@ class EODMSRAPI:
                         fn = os.path.basename(url)
 
                         # Download the image
-                        msg = f"Downloading image from Collection " \
+                        # msg = f"Downloading image from Collection " \
+                        #         f"{coll_id} with Record Id {record_id} ({fn})."
+                        msg = f"Downloading Order Item #{item_id} from Order " \
+                                f"#{order_id}: Image from Collection " \
                                 f"{coll_id} with Record Id {record_id} ({fn})."
                         self.log_msg(msg)
 
@@ -1662,11 +1699,16 @@ class EODMSRAPI:
                         if not os.path.exists(dest):
                             os.makedirs(dest, exist_ok=True)
 
+                        if os.path.exists(out_fn):
+                            name, ext = os.path.splitext(out_fn)
+                            out_fn = name + f"_{record_id}" + ext
+
                         try:
                             if url.endswith('.zip'):
                                 self.download_image(url, out_fn, fsize,
                                                     show_progress=show_progress)
                             else:
+                                self.log_msg("Downloading SAR Toolbox order...")
                                 self.download_folder(url, out_fn, fsize,
                                                     show_progress=show_progress)
                         except Exception as e:
@@ -3003,6 +3045,15 @@ class EODMSRAPI:
 
         unique_orders = []
         for o in orders:
+            
+            # Determine if order is SAR Toolbox
+            params = o.get('parameters')
+            if params is None:
+                params = o
+            if 'Vap_Request_UUID' in params.keys():
+                unique_orders.append(o)
+                continue
+
             rec_id = o['recordId']
             if rec_id in dup_ids:
                 # For the duplicate, get the latest order
@@ -3100,6 +3151,9 @@ class EODMSRAPI:
         # Create the items from the list of results
         coll_key = self.get_conv('collectionId')
         recid_key = self.get_conv('recordId')
+
+        if isinstance(results, dict):
+            results = [results]
 
         items = []
         for r in results:

@@ -157,6 +157,13 @@ class RAPIRequests:
         # print(f"Session headers: {self._session.headers}")
         # print(f"headers: {self._headers}")
 
+    def get_header(self, url):
+
+        if self._session:
+            return self._session.head(url)
+        else:
+            return requests.head(url, headers=self._headers, verify=self.verify)
+
     def submit(self, query_url, request_type='get', post_data=None,
                 timeout=None, record_name=None, quiet=True, as_json=True):
         """

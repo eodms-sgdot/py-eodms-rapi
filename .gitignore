@@ -58,4 +58,5 @@ _update_repository.bat
 eodms_rapi/backup*/
 eodms_rapi/*.bak
 old_docs/
+open_env.ps1
 *.bak
