@@ -1622,7 +1622,7 @@ class EODMSRAPI:
                 coll_id = cur_item['collectionId']
 
                 # Check record is already complete
-                if self._check_complete(complete_items, record_id):
+                if self._check_complete(complete_items, item_id, record_id):
                     continue
 
                 if status in self.failed_status:
@@ -1685,7 +1685,10 @@ class EODMSRAPI:
                         fn = os.path.basename(url)
 
                         # Download the image
-                        msg = f"Downloading image from Collection " \
+                        # msg = f"Downloading image from Collection " \
+                        #         f"{coll_id} with Record Id {record_id} ({fn})."
+                        msg = f"Downloading Order Item #{item_id} from Order " \
+                                f"#{order_id}: Image from Collection " \
                                 f"{coll_id} with Record Id {record_id} ({fn})."
                         self.log_msg(msg)
 
@@ -1696,11 +1699,16 @@ class EODMSRAPI:
                         if not os.path.exists(dest):
                             os.makedirs(dest, exist_ok=True)
 
+                        if os.path.exists(out_fn):
+                            name, ext = os.path.splitext(out_fn)
+                            out_fn = name + f"_{record_id}" + ext
+
                         try:
                             if url.endswith('.zip'):
                                 self.download_image(url, out_fn, fsize,
                                                     show_progress=show_progress)
                             else:
+                                self.log_msg("Downloading SAR Toolbox order...")
                                 self.download_folder(url, out_fn, fsize,
                                                     show_progress=show_progress)
                         except Exception as e:
@@ -3037,6 +3045,15 @@ class EODMSRAPI:
 
         unique_orders = []
         for o in orders:
+            
+            # Determine if order is SAR Toolbox
+            params = o.get('parameters')
+            if params is None:
+                params = o
+            if 'Vap_Request_UUID' in params.keys():
+                unique_orders.append(o)
+                continue
+
             rec_id = o['recordId']
             if rec_id in dup_ids:
                 # For the duplicate, get the latest order
@@ -3134,6 +3151,9 @@ class EODMSRAPI:
         # Create the items from the list of results
         coll_key = self.get_conv('collectionId')
         recid_key = self.get_conv('recordId')
+
+        if isinstance(results, dict):
+            results = [results]
 
         items = []
         for r in results:

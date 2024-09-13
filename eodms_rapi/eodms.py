@@ -107,7 +107,7 @@ class EODMSRAPI:
         self.err_occurred = False
         self.auth_err = False
         self.err_msg = None
-        self.order_json = None
+        self.order_info = None
         self.show_timestamp = show_timestamp
         self.msg = ''
         self.search_params = {}
@@ -326,7 +326,7 @@ class EODMSRAPI:
 
         # print(f"complete_items: {complete_items}")
 
-        complete_item_all = [i['itemId'] for i in complete_items]
+        # complete_item_all = [i['itemId'] for i in complete_items]
         complete_item_ids = [i['itemId'] for i in complete_items 
                              if str(i['recordId']) == str(record_id)]
         parent_ids = [i.get('parameters').get('ParentItemId') 
@@ -794,6 +794,18 @@ class EODMSRAPI:
         except (ValueError, TypeError):
             return False
         return True
+
+    def get_metadata(self):
+        """
+        Gets the metadata of the current user.
+
+        :return: The metadata of the current user.
+        :rtype: dict
+        """
+
+        metadata_url = f"{self.rapi_root}/metadata?format=json"
+        metadata = self.rapi_session.submit(metadata_url)
+        return metadata
 
     def _create_expr(self, field_id, op, value, d_type):
 
@@ -2938,7 +2950,7 @@ class EODMSRAPI:
         self.msg = ''
         self.err_occurred = False
         self.auth_err = False
-        self.order_json = None
+        self.order_info = None
         self.search_results = None
 
     def clear_results(self):
@@ -3030,7 +3042,7 @@ class EODMSRAPI:
 
     def remove_duplicate_orders(self, orders):
         """
-        Removes any duplicate images from a list of orders
+        Removes any duplicate images from a list of orders.
 
         :param orders: A list of orders.
         :type  orders: list
@@ -3039,44 +3051,39 @@ class EODMSRAPI:
         :rtype:  list
         """
 
-        # Get duplicate record IDs
-        rec_ids = [o['recordId'] for o in orders]
-        dup_ids = list(set([x for x in rec_ids if rec_ids.count(x) > 1]))
+        # order_items = [o.get('itemId') for o in orders]
 
         unique_orders = []
-        for o in orders:
+        for order in orders:
+
+            order_item = order.get('itemId')
+            if order_item in [o.get('itemId') for o in unique_orders]:
+                continue
             
             # Determine if order is SAR Toolbox
-            params = o.get('parameters')
-            if params is None:
-                params = o
+            params = order.get('parameters')
+            params = order.get('parameters') \
+                        if order.get('parameters') else order
             if 'Vap_Request_UUID' in params.keys():
-                unique_orders.append(o)
+                unique_orders.append(order)
                 continue
 
-            rec_id = o['recordId']
-            if rec_id in dup_ids:
-                # For the duplicate, get the latest order
-                filt_ords = [order for order in orders
-                             if order['recordId'] == rec_id]
+            exist_rec_ids = []
+            for o in unique_orders:
+                params = o.get('parameters') if o.get('parameters') else o
+                if 'Vap_Request_UUID' not in params.keys():
+                    exist_rec_ids.append(o.get('recordId'))
 
-                for order in filt_ords:
-                    if 'dateRapiOrdered' in order.keys():
-                        order['dateSubmitted'] = order['dateRapiOrdered']
-                        del order['dateRapiOrdered']
+            if order.get('recordId') in exist_rec_ids:
+                continue
 
-                if 'dateSubmitted' in filt_ords[0]:
-                    date_sort = sorted(filt_ords,
-                                    key=lambda d: d['dateSubmitted'],
-                                    reverse=True)
-                else:
-                    date_sort = filt_ords
-                if rec_id not in [order['recordId'] for order in unique_orders]:
-                    unique_orders.append(date_sort[0])
-            else:
-                unique_orders.append(o)
-
+            unique_orders.append(order)
+              
         return unique_orders
+               
+                       
+                      
+        # return unique_orders
 
     def order(self, results, priority="Medium", parameters=None,
               destinations=None):
@@ -3184,7 +3191,7 @@ class EODMSRAPI:
             items.append(item)
 
         # Create the dictionary for the POST request JSON
-        self.order_json = [{"destinations": destinations,
+        self.order_info = [{"destinations": destinations,
                         "items": items[i:i + 100]} for i in range(0, len(items),
                                                                   100)]
         # Set the RAPI URL for the POST
@@ -3196,7 +3203,7 @@ class EODMSRAPI:
         time_submitted = datetime.datetime.now(tzlocal()).isoformat()
         # order_res = None
         all_items = []
-        for p in self.order_json:
+        for p in self.order_info:
             # Dump the dictionary into a JSON object
             post_json = json.dumps(p)
             logger.debug(f"RAPI POST:\n\n{post_json}\n")

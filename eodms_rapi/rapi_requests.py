@@ -398,6 +398,7 @@ class RAPIRequests:
         if show_progress:
             with self._session.get(url, stream=True, verify=self.verify) \
                     as stream:
+                try:
                 with open(dest_fn, 'wb') as pipe:
                     with tqdm.wrapattr(
                             pipe,
@@ -409,6 +410,9 @@ class RAPIRequests:
                     ) as file_out:
                         for chunk in stream.iter_content(chunk_size=1024):
                             file_out.write(chunk)
+                except FileNotFoundError:
+                    pass
+
         else:
             response = self._session.get(url, stream=True, verify=self.verify)
             if dest_fn is None:
