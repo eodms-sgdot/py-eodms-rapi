@@ -399,17 +399,17 @@ class RAPIRequests:
             with self._session.get(url, stream=True, verify=self.verify) \
                     as stream:
                 try:
-                with open(dest_fn, 'wb') as pipe:
-                    with tqdm.wrapattr(
-                            pipe,
-                            method='write',
-                            miniters=1,
-                            total=fsize,
-                            desc=f"{self.eodms.header}\
-                                {os.path.basename(dest_fn)}"
-                    ) as file_out:
-                        for chunk in stream.iter_content(chunk_size=1024):
-                            file_out.write(chunk)
+                    with open(dest_fn, 'wb') as pipe:
+                        with tqdm.wrapattr(
+                                pipe,
+                                method='write',
+                                miniters=1,
+                                total=fsize,
+                                desc=f"{self.eodms.header}\
+                                    {os.path.basename(dest_fn)}"
+                        ) as file_out:
+                            for chunk in stream.iter_content(chunk_size=1024):
+                                file_out.write(chunk)
                 except FileNotFoundError:
                     pass
 
