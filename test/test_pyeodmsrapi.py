@@ -185,5 +185,22 @@ class TestEodmsRapi(unittest.TestCase):
 
         colls = rapi.get_collections()
 
+    def test_st_orders(self):
+
+        rapi = eodms_rapi.EODMSRAPI(os.getenv('EODMS_USER'),
+                                    os.environ.get('EODMS_PASSWORD'))
+
+        order_id = os.environ.get('ORDER_ID')
+        if order_id is None:
+            order_id = 708364
+
+        print(f"order_id: {order_id}")
+        order_res = rapi.get_order(order_id)
+        dest = "files/downloads"
+        os.makedirs(dest, exist_ok=True)
+        dn_res = rapi.download(order_res, dest, max_attempts=100)
+
+        print(f"dn_res: {dn_res}")
+
 if __name__ == '__main__':
     unittest.main()

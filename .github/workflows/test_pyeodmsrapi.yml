@@ -90,3 +90,14 @@ jobs:
         run: |
           cd test
           python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_wrong_creds
+
+      # Runs with wrong creds
+      - name: Run py-eodms-rapi Test 7 - SAR Toolbox Order
+        # continue-on-error: true
+        env:
+          EODMS_USER: ${{ secrets.EODMS_USER }}
+          EODMS_PASSWORD: ${{ secrets.EODMS_PWD }}
+          ORDER_ID: 708364
+        run: |
+          cd test
+          python -m unittest test_pyeodmsrapi.TestEodmsRapi.test_st_orders

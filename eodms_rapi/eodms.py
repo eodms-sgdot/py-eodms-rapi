@@ -107,7 +107,7 @@ class EODMSRAPI:
         self.err_occurred = False
         self.auth_err = False
         self.err_msg = None
-        self.order_json = None
+        self.order_info = None
         self.show_timestamp = show_timestamp
         self.msg = ''
         self.search_params = {}
@@ -294,20 +294,45 @@ class EODMSRAPI:
 
     ###############################################################
 
-    def _check_complete(self, complete_items, record_id):
+    # def _check_complete(self, complete_items, record_id):
+    #     """
+    #     Checks if an order item has already been downloaded.
+
+    #     :param complete_items: A list of completed order items.
+    #     :type  complete_items: list
+    #     :param record_id: The record ID of the image.
+    #     :type  record_id: int
+
+    #     :return: True if already downloaded, False if not.
+    #     :rtype: boolean
+    #     """
+
+    #     return any(i['recordId'] == record_id for i in complete_items)
+
+    def _check_complete(self, complete_items, item_id, record_id):
         """
         Checks if an order item has already been downloaded.
 
         :param complete_items: A list of completed order items.
-        :type  complete_items: list
+        :type  complete_items: list[dict]
+        :param item_id: The Order Item ID of the image.
+        :type  item_id: int
         :param record_id: The record ID of the image.
         :type  record_id: int
 
         :return: True if already downloaded, False if not.
-        :rtype: boolean
+        :rtype: bool
         """
 
-        return any(i['recordId'] == record_id for i in complete_items)
+        # print(f"complete_items: {complete_items}")
+
+        # complete_item_all = [i['itemId'] for i in complete_items]
+        complete_item_ids = [i['itemId'] for i in complete_items 
+                             if str(i['recordId']) == str(record_id)]
+        parent_ids = [i.get('parameters').get('ParentItemId') 
+                      for i in complete_items]
+
+        return item_id in complete_item_ids or item_id in parent_ids
 
     def _check_auth(self, in_err=None):
         """
@@ -356,7 +381,7 @@ class EODMSRAPI:
         :param date: The input date to convert.
         :type  date: str or datetime.datetime
         :param in_forms: Specifies the input formats of the date.
-        :type  in_forms: list
+        :type  in_forms: list[str]
         :param out: The type of output date, either 'string' or 'date'
                     (i.e. datetime.datetime)
         :type  out: str
@@ -475,7 +500,7 @@ class EODMSRAPI:
 
         :return: A list containing the metadata for all items in the
         self.results
-        :rtype:  list
+        :rtype:  list[dict]
         """
 
         metadata_fields = self._get_meta_keys()
@@ -555,7 +580,7 @@ class EODMSRAPI:
         Gets the date range for a list of items (images).
 
         :param items: A list of items.
-        :type  items: list
+        :type  items: list[dict]
 
         :return: A tuple with the start and end date of the range.
         :rtype: tuple
@@ -595,7 +620,7 @@ class EODMSRAPI:
         Gets a list of metadata (fields) keys for a given collection
 
         :return: A list of metadata keys
-        :rtype:  list
+        :rtype:  list[str]
         """
 
         if not self.rapi_collections:
@@ -739,7 +764,7 @@ class EODMSRAPI:
         :param item_id: The order item ID.
         :type  item_id: int
         :param orders: A list of order items.
-        :type  orders: list
+        :type  orders: list[dict]
 
         :return: The specific order with the given order item ID.
         :rtype: dict
@@ -770,6 +795,18 @@ class EODMSRAPI:
             return False
         return True
 
+    def get_metadata(self):
+        """
+        Gets the metadata of the current user.
+
+        :return: The metadata of the current user.
+        :rtype: dict
+        """
+
+        metadata_url = f"{self.rapi_root}/metadata?format=json"
+        metadata = self.rapi_session.submit(metadata_url)
+        return metadata
+
     def _create_expr(self, field_id, op, value, d_type):
 
         choices = self.get_field_choices(self.collection, field_id)
@@ -798,7 +835,7 @@ class EODMSRAPI:
         Logs a message to the logger.
 
         :param messages: Either a single message or a list of messages to log.
-        :type  messages: str or list
+        :type  messages: str or list[str]
         :param msg_type: The type of log ('debug', 'info', 'warning',
                         'error', etc.)
         :type  msg_type: str
@@ -851,14 +888,14 @@ class EODMSRAPI:
         Orders the metadata keys of RAPI results.
 
         :param results:
-        :type  results: list
+        :type  results: list[dict]
         :param keys: A list of keys in the proper order (the list does not
                     have to contain all the keys, all remaining keys will
                     appear in their original order).
-        :type  keys: list
+        :type  keys: list[str]
 
         :return: The results in the specified order.
-        :rtype: list
+        :rtype: list[dict]
         """
 
         out_results = []
@@ -1365,21 +1402,20 @@ class EODMSRAPI:
         # print(os.path.exists(dest_fn))
         if os.path.exists(dest_fn):
             # if all-good, continue to next file
-            print(f"os.stat: {os.stat(dest_fn).st_size}")
+            # print(f"os.stat: {os.stat(dest_fn).st_size}")
             if os.stat(dest_fn).st_size == fsize:
                 self.msg = f"No download necessary. Local file already " \
                     f"exists: {dest_fn}"
                 self.log_msg(self.msg)
-                return True
+                return None
             # Otherwise, delete the incomplete/malformed local file and
             #   redownload
-            else:
-                self.msg = f'Filesize mismatch with ' \
-                    f'{os.path.basename(dest_fn)}. Re-downloading...'
-                self.log_msg(self.msg, 'warning')
-                os.remove(dest_fn)
+            self.msg = f'Filesize mismatch with ' \
+                f'{os.path.basename(dest_fn)}. Re-downloading...'
+            self.log_msg(self.msg, 'warning')
+            os.remove(dest_fn)
 
-        return False
+        return dest_fn
 
     def download_folder(self, url, dest_folder, fsize=None, show_progress=True):
         """
@@ -1396,7 +1432,7 @@ class EODMSRAPI:
         :type  show_progress: bool
         """
 
-        print(f"Downloading folder...")
+        self.log_msg(f"Downloading folder {os.path.basename(url)}...")
 
         # print(f"dest_folder: {dest_folder}")
 
@@ -1435,13 +1471,23 @@ class EODMSRAPI:
             
             # print(f"href: {href}")
 
-            path = urlparse(href).path
-            ext = os.path.splitext(path)[1]
+            resp_header = self.rapi_session.get_header(href)
+
+            entry_type = resp_header.headers.get('Entry-Type')
+
+            # print(f"entry_type: {entry_type}")
+
+            # path = urlparse(href).path
+            # ext = os.path.splitext(path)[1]
             # print(ext)
 
-            if ext == '':
+            if entry_type == "Directory":
                 new_dest = os.path.join(dest_folder, os.path.basename(href))
                 # print(f"new_dest: {new_dest}")
+
+                if os.path.basename(dest_folder).find(os.path.basename(href)) > -1:
+                    new_dest = dest_folder
+
                 self.download_folder(href, new_dest,
                                      show_progress=show_progress)
                 continue
@@ -1477,7 +1523,7 @@ class EODMSRAPI:
 
         # If we have an existing local file, check the filesize against the
         #   manifest
-        if self._check_exists(dest_fn, fsize):
+        if not self._check_exists(dest_fn, fsize):
             return None
 
         if self._check_auth():
@@ -1582,13 +1628,15 @@ class EODMSRAPI:
             for itm in unique_items:
                 item_id = itm['itemId']
                 cur_item = self._get_item_from_orders(item_id, orders)
+                if not cur_item:
+                    continue
                 order_id = cur_item['orderId']
                 status = cur_item['status']
                 record_id = cur_item['recordId']
                 coll_id = cur_item['collectionId']
 
                 # Check record is already complete
-                if self._check_complete(complete_items, record_id):
+                if self._check_complete(complete_items, item_id, record_id):
                     continue
 
                 if status in self.failed_status:
@@ -1651,7 +1699,10 @@ class EODMSRAPI:
                         fn = os.path.basename(url)
 
                         # Download the image
-                        msg = f"Downloading image from Collection " \
+                        # msg = f"Downloading image from Collection " \
+                        #         f"{coll_id} with Record Id {record_id} ({fn})."
+                        msg = f"Downloading Order Item #{item_id} from Order " \
+                                f"#{order_id}: Image from Collection " \
                                 f"{coll_id} with Record Id {record_id} ({fn})."
                         self.log_msg(msg)
 
@@ -1662,11 +1713,16 @@ class EODMSRAPI:
                         if not os.path.exists(dest):
                             os.makedirs(dest, exist_ok=True)
 
+                        if os.path.exists(out_fn):
+                            name, ext = os.path.splitext(out_fn)
+                            out_fn = name + f"_{record_id}" + ext
+
                         try:
                             if url.endswith('.zip'):
                                 self.download_image(url, out_fn, fsize,
                                                     show_progress=show_progress)
                             else:
+                                self.log_msg("Downloading SAR Toolbox order...")
                                 self.download_folder(url, out_fn, fsize,
                                                     show_progress=show_progress)
                         except Exception as e:
@@ -2896,7 +2952,7 @@ class EODMSRAPI:
         self.msg = ''
         self.err_occurred = False
         self.auth_err = False
-        self.order_json = None
+        self.order_info = None
         self.search_results = None
 
     def clear_results(self):
@@ -2988,7 +3044,7 @@ class EODMSRAPI:
 
     def remove_duplicate_orders(self, orders):
         """
-        Removes any duplicate images from a list of orders
+        Removes any duplicate images from a list of orders.
 
         :param orders: A list of orders.
         :type  orders: list
@@ -2997,35 +3053,114 @@ class EODMSRAPI:
         :rtype:  list
         """
 
-        # Get duplicate record IDs
-        rec_ids = [o['recordId'] for o in orders]
-        dup_ids = list(set([x for x in rec_ids if rec_ids.count(x) > 1]))
+        # order_items = [o.get('itemId') for o in orders]
 
         unique_orders = []
-        for o in orders:
-            rec_id = o['recordId']
-            if rec_id in dup_ids:
-                # For the duplicate, get the latest order
-                filt_ords = [order for order in orders
-                             if order['recordId'] == rec_id]
+        for order in orders:
 
-                for order in filt_ords:
-                    if 'dateRapiOrdered' in order.keys():
-                        order['dateSubmitted'] = order['dateRapiOrdered']
-                        del order['dateRapiOrdered']
+            order_item = order.get('itemId')
+            if order_item in [o.get('itemId') for o in unique_orders]:
+                continue
+            
+            # Determine if order is SAR Toolbox
+            params = order.get('parameters')
+            params = order.get('parameters') \
+                        if order.get('parameters') else order
+            if 'Vap_Request_UUID' in params.keys():
+                unique_orders.append(order)
+                continue
 
-                if 'dateSubmitted' in filt_ords[0]:
-                    date_sort = sorted(filt_ords,
-                                    key=lambda d: d['dateSubmitted'],
-                                    reverse=True)
-                else:
-                    date_sort = filt_ords
-                if rec_id not in [order['recordId'] for order in unique_orders]:
-                    unique_orders.append(date_sort[0])
-            else:
-                unique_orders.append(o)
+            exist_rec_ids = []
+            for o in unique_orders:
+                params = o.get('parameters') if o.get('parameters') else o
+                if 'Vap_Request_UUID' not in params.keys():
+                    exist_rec_ids.append(o.get('recordId'))
 
+            if order.get('recordId') in exist_rec_ids:
+                continue
+
+            unique_orders.append(order)
+              
         return unique_orders
+               
+                       
+                      
+        # return unique_orders
+
+    def order_json(self, in_json, priority=None):
+        """
+        Sends a JSON order request to the EODMS RAPI.
+
+        :param in_json: The input JSON request.
+        :type  in_json: dict
+        :param priority: The priority for the Order request.
+        :type  priority: str
+
+        :return: A JSON of the order sent to the RAPI (or an error if the 
+                request was unsuccessful).
+        :rtype:  dict or str (error message)
+        """
+
+        # print(f"in_json: {in_json}")
+
+        msg = "Submitting order items..."
+        self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+
+        # Set the RAPI URL for the POST
+        self.rapi_url = f"{self.rapi_root}/order"
+
+        # logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
+        self.log_msg(f"RAPI URL:\n\n{self.rapi_url}\n")
+
+        # Send the JSON request to the RAPI
+        time_submitted = datetime.datetime.now(tzlocal()).isoformat()
+
+        # Add the 'Content-Type' option to the header
+        self.rapi_session.add_header('Content-Type', 'application/json')
+
+        # Set the priority
+        if priority:
+            items = []
+            for item in in_json.get('items'):
+                item['priority'] = priority.title()
+                items.append(item)
+            in_json['items'] = items
+
+        post_json = json.dumps(in_json)
+        # logger.debug(f"RAPI POST:\n\n{post_json}\n")
+        self.log_msg(f"RAPI POST:\n\n{post_json}\n")
+        order_res = self.rapi_session.submit(self.rapi_url, 'POST', post_json)
+
+        if self.err_occurred:
+            return None
+
+        if order_res is None:
+            err = self._get_exception(order_res)
+            if isinstance(err, list):
+                self.msg = '; '.join(err)
+                self.log_msg(self.msg, 'warning')
+                return self.msg
+
+        if isinstance(order_res, requests.Response) and not order_res.ok:
+            self.err_msg = "Order submission failed."
+            self.log_msg(self.err_msg, 'error')
+            self.err_occurred = True
+            return self.err_msg
+        
+        if isinstance(order_res, QueryError):
+            self.err_msg = f"Order submission failed - " \
+                            f"{order_res.get_msgs(True)}"
+            self.log_msg(self.err_msg, 'error')
+            self.err_occurred = True
+            return order_res
+
+        # Add the time the order was submitted
+        items = order_res['items']
+
+        for i in items:
+            i['dateRapiOrdered'] = time_submitted
+
+        return items
 
     def order(self, results, priority="Medium", parameters=None,
               destinations=None):
@@ -3086,6 +3221,10 @@ class EODMSRAPI:
         :param destinations: A JSON representation of an array of order
             destinations
         :type  destinations: list
+
+        :return: A JSON of the order sent to the RAPI (or an error if the 
+                request was unsuccessful).
+        :rtype:  dict or str (error message)
         """
 
         if destinations is None:
@@ -3100,6 +3239,9 @@ class EODMSRAPI:
         # Create the items from the list of results
         coll_key = self.get_conv('collectionId')
         recid_key = self.get_conv('recordId')
+
+        if isinstance(results, dict):
+            results = [results]
 
         items = []
         for r in results:
@@ -3130,7 +3272,7 @@ class EODMSRAPI:
             items.append(item)
 
         # Create the dictionary for the POST request JSON
-        self.order_json = [{"destinations": destinations,
+        self.order_info = [{"destinations": destinations,
                         "items": items[i:i + 100]} for i in range(0, len(items),
                                                                   100)]
         # Set the RAPI URL for the POST
@@ -3142,7 +3284,7 @@ class EODMSRAPI:
         time_submitted = datetime.datetime.now(tzlocal()).isoformat()
         # order_res = None
         all_items = []
-        for p in self.order_json:
+        for p in self.order_info:
             # Dump the dictionary into a JSON object
             post_json = json.dumps(p)
             logger.debug(f"RAPI POST:\n\n{post_json}\n")

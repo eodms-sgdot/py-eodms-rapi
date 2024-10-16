@@ -157,6 +157,13 @@ class RAPIRequests:
         # print(f"Session headers: {self._session.headers}")
         # print(f"headers: {self._headers}")
 
+    def get_header(self, url):
+
+        if self._session:
+            return self._session.head(url)
+        else:
+            return requests.head(url, headers=self._headers, verify=self.verify)
+
     def submit(self, query_url, request_type='get', post_data=None,
                 timeout=None, record_name=None, quiet=True, as_json=True):
         """
@@ -391,17 +398,21 @@ class RAPIRequests:
         if show_progress:
             with self._session.get(url, stream=True, verify=self.verify) \
                     as stream:
-                with open(dest_fn, 'wb') as pipe:
-                    with tqdm.wrapattr(
-                            pipe,
-                            method='write',
-                            miniters=1,
-                            total=fsize,
-                            desc=f"{self.eodms.header}\
-                                {os.path.basename(dest_fn)}"
-                    ) as file_out:
-                        for chunk in stream.iter_content(chunk_size=1024):
-                            file_out.write(chunk)
+                try:
+                    with open(dest_fn, 'wb') as pipe:
+                        with tqdm.wrapattr(
+                                pipe,
+                                method='write',
+                                miniters=1,
+                                total=fsize,
+                                desc=f"{self.eodms.header}\
+                                    {os.path.basename(dest_fn)}"
+                        ) as file_out:
+                            for chunk in stream.iter_content(chunk_size=1024):
+                                file_out.write(chunk)
+                except FileNotFoundError:
+                    pass
+
         else:
             response = self._session.get(url, stream=True, verify=self.verify)
             if dest_fn is None:
