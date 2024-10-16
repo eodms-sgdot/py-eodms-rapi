@@ -314,14 +314,14 @@ class EODMSRAPI:
         Checks if an order item has already been downloaded.
 
         :param complete_items: A list of completed order items.
-        :type  complete_items: list
+        :type  complete_items: list[dict]
         :param item_id: The Order Item ID of the image.
         :type  item_id: int
         :param record_id: The record ID of the image.
         :type  record_id: int
 
         :return: True if already downloaded, False if not.
-        :rtype: boolean
+        :rtype: bool
         """
 
         # print(f"complete_items: {complete_items}")
@@ -381,7 +381,7 @@ class EODMSRAPI:
         :param date: The input date to convert.
         :type  date: str or datetime.datetime
         :param in_forms: Specifies the input formats of the date.
-        :type  in_forms: list
+        :type  in_forms: list[str]
         :param out: The type of output date, either 'string' or 'date'
                     (i.e. datetime.datetime)
         :type  out: str
@@ -500,7 +500,7 @@ class EODMSRAPI:
 
         :return: A list containing the metadata for all items in the
         self.results
-        :rtype:  list
+        :rtype:  list[dict]
         """
 
         metadata_fields = self._get_meta_keys()
@@ -580,7 +580,7 @@ class EODMSRAPI:
         Gets the date range for a list of items (images).
 
         :param items: A list of items.
-        :type  items: list
+        :type  items: list[dict]
 
         :return: A tuple with the start and end date of the range.
         :rtype: tuple
@@ -620,7 +620,7 @@ class EODMSRAPI:
         Gets a list of metadata (fields) keys for a given collection
 
         :return: A list of metadata keys
-        :rtype:  list
+        :rtype:  list[str]
         """
 
         if not self.rapi_collections:
@@ -764,7 +764,7 @@ class EODMSRAPI:
         :param item_id: The order item ID.
         :type  item_id: int
         :param orders: A list of order items.
-        :type  orders: list
+        :type  orders: list[dict]
 
         :return: The specific order with the given order item ID.
         :rtype: dict
@@ -835,7 +835,7 @@ class EODMSRAPI:
         Logs a message to the logger.
 
         :param messages: Either a single message or a list of messages to log.
-        :type  messages: str or list
+        :type  messages: str or list[str]
         :param msg_type: The type of log ('debug', 'info', 'warning',
                         'error', etc.)
         :type  msg_type: str
@@ -888,14 +888,14 @@ class EODMSRAPI:
         Orders the metadata keys of RAPI results.
 
         :param results:
-        :type  results: list
+        :type  results: list[dict]
         :param keys: A list of keys in the proper order (the list does not
                     have to contain all the keys, all remaining keys will
                     appear in their original order).
-        :type  keys: list
+        :type  keys: list[str]
 
         :return: The results in the specified order.
-        :rtype: list
+        :rtype: list[dict]
         """
 
         out_results = []
@@ -1628,6 +1628,8 @@ class EODMSRAPI:
             for itm in unique_items:
                 item_id = itm['itemId']
                 cur_item = self._get_item_from_orders(item_id, orders)
+                if not cur_item:
+                    continue
                 order_id = cur_item['orderId']
                 status = cur_item['status']
                 record_id = cur_item['recordId']
@@ -3085,6 +3087,81 @@ class EODMSRAPI:
                       
         # return unique_orders
 
+    def order_json(self, in_json, priority=None):
+        """
+        Sends a JSON order request to the EODMS RAPI.
+
+        :param in_json: The input JSON request.
+        :type  in_json: dict
+        :param priority: The priority for the Order request.
+        :type  priority: str
+
+        :return: A JSON of the order sent to the RAPI (or an error if the 
+                request was unsuccessful).
+        :rtype:  dict or str (error message)
+        """
+
+        # print(f"in_json: {in_json}")
+
+        msg = "Submitting order items..."
+        self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+
+        # Set the RAPI URL for the POST
+        self.rapi_url = f"{self.rapi_root}/order"
+
+        # logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
+        self.log_msg(f"RAPI URL:\n\n{self.rapi_url}\n")
+
+        # Send the JSON request to the RAPI
+        time_submitted = datetime.datetime.now(tzlocal()).isoformat()
+
+        # Add the 'Content-Type' option to the header
+        self.rapi_session.add_header('Content-Type', 'application/json')
+
+        # Set the priority
+        if priority:
+            items = []
+            for item in in_json.get('items'):
+                item['priority'] = priority.title()
+                items.append(item)
+            in_json['items'] = items
+
+        post_json = json.dumps(in_json)
+        # logger.debug(f"RAPI POST:\n\n{post_json}\n")
+        self.log_msg(f"RAPI POST:\n\n{post_json}\n")
+        order_res = self.rapi_session.submit(self.rapi_url, 'POST', post_json)
+
+        if self.err_occurred:
+            return None
+
+        if order_res is None:
+            err = self._get_exception(order_res)
+            if isinstance(err, list):
+                self.msg = '; '.join(err)
+                self.log_msg(self.msg, 'warning')
+                return self.msg
+
+        if isinstance(order_res, requests.Response) and not order_res.ok:
+            self.err_msg = "Order submission failed."
+            self.log_msg(self.err_msg, 'error')
+            self.err_occurred = True
+            return self.err_msg
+        
+        if isinstance(order_res, QueryError):
+            self.err_msg = f"Order submission failed - " \
+                            f"{order_res.get_msgs(True)}"
+            self.log_msg(self.err_msg, 'error')
+            self.err_occurred = True
+            return order_res
+
+        # Add the time the order was submitted
+        items = order_res['items']
+
+        for i in items:
+            i['dateRapiOrdered'] = time_submitted
+
+        return items
+
     def order(self, results, priority="Medium", parameters=None,
               destinations=None):
         """
@@ -3144,6 +3221,10 @@ class EODMSRAPI:
         :param destinations: A JSON representation of an array of order
             destinations
         :type  destinations: list
+
+        :return: A JSON of the order sent to the RAPI (or an error if the 
+                request was unsuccessful).
+        :rtype:  dict or str (error message)
         """
 
         if destinations is None:
