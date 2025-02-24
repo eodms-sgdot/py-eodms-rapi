@@ -16,7 +16,7 @@ import logging.config
 import traceback
 import urllib
 import json
-import datetime
+from datetime import datetime, timedelta, timezone
 import pytz
 import time
 import dateparser
@@ -24,6 +24,7 @@ import re
 from lxml import html, etree
 import dateutil.parser
 from dateutil.tz import tzlocal
+from dateutil.relativedelta import relativedelta
 from urllib.parse import urlencode, urlparse
 # from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
@@ -102,7 +103,7 @@ class EODMSRAPI:
         self.feats = None
         self.max_results = None
         self.rapi_url = None
-        self.start = datetime.datetime.now()
+        self.start = datetime.now()
         self.logger = logger
         self.err_occurred = False
         self.auth_err = False
@@ -314,14 +315,14 @@ class EODMSRAPI:
         Checks if an order item has already been downloaded.
 
         :param complete_items: A list of completed order items.
-        :type  complete_items: list
+        :type  complete_items: list[dict]
         :param item_id: The Order Item ID of the image.
         :type  item_id: int
         :param record_id: The record ID of the image.
         :type  record_id: int
 
         :return: True if already downloaded, False if not.
-        :rtype: boolean
+        :rtype: bool
         """
 
         # print(f"complete_items: {complete_items}")
@@ -381,7 +382,7 @@ class EODMSRAPI:
         :param date: The input date to convert.
         :type  date: str or datetime.datetime
         :param in_forms: Specifies the input formats of the date.
-        :type  in_forms: list
+        :type  in_forms: list[str]
         :param out: The type of output date, either 'string' or 'date'
                     (i.e. datetime.datetime)
         :type  out: str
@@ -394,7 +395,7 @@ class EODMSRAPI:
 
         if in_forms is None:
             in_forms = ['%Y-%m-%d %H:%M:%S.%f']
-        if isinstance(date, datetime.datetime):
+        if isinstance(date, datetime):
             return date.isoformat() if out_form == 'iso' \
                         else date.strftime(out_form)
         elif isinstance(date, str):
@@ -404,7 +405,7 @@ class EODMSRAPI:
 
             for form in in_forms:
                 try:
-                    out_date = datetime.datetime.strptime(date, form)
+                    out_date = datetime.strptime(date, form)
                     return out_date if out == 'date' \
                             else out_date.strftime(out_form)
                 except ValueError as e:
@@ -500,7 +501,7 @@ class EODMSRAPI:
 
         :return: A list containing the metadata for all items in the
         self.results
-        :rtype:  list
+        :rtype:  list[dict]
         """
 
         metadata_fields = self._get_meta_keys()
@@ -580,7 +581,7 @@ class EODMSRAPI:
         Gets the date range for a list of items (images).
 
         :param items: A list of items.
-        :type  items: list
+        :type  items: list[dict]
 
         :return: A tuple with the start and end date of the range.
         :rtype: tuple
@@ -608,10 +609,10 @@ class EODMSRAPI:
         dates.sort()
 
         start = dates[0]
-        start = start - datetime.timedelta(hours=0, minutes=1)
+        start = start - timedelta(hours=0, minutes=1)
 
         end = dates[-1]
-        end = end + datetime.timedelta(hours=0, minutes=1)
+        end = end + timedelta(hours=0, minutes=1)
 
         return start, end
 
@@ -620,7 +621,7 @@ class EODMSRAPI:
         Gets a list of metadata (fields) keys for a given collection
 
         :return: A list of metadata keys
-        :rtype:  list
+        :rtype:  list[str]
         """
 
         if not self.rapi_collections:
@@ -764,7 +765,7 @@ class EODMSRAPI:
         :param item_id: The order item ID.
         :type  item_id: int
         :param orders: A list of order items.
-        :type  orders: list
+        :type  orders: list[dict]
 
         :return: The specific order with the given order item ID.
         :rtype: dict
@@ -777,6 +778,21 @@ class EODMSRAPI:
                         return o
             if str(o['itemId']) == str(item_id):
                 return o
+
+    def _phrase_to_date(self, in_date):
+        """
+        Converts a date phrase to a date format for the RAPI.
+
+        :param in_date: The date phrase to convert.
+        :type  in_date: str
+        """
+
+        if isinstance(in_date, datetime):
+            return in_date
+        elif isinstance(in_date, str):
+            return dateparser.parse(in_date)
+        else:
+            return None
 
     def is_json(self, my_json):
         """
@@ -835,7 +851,7 @@ class EODMSRAPI:
         Logs a message to the logger.
 
         :param messages: Either a single message or a list of messages to log.
-        :type  messages: str or list
+        :type  messages: str or list[str]
         :param msg_type: The type of log ('debug', 'info', 'warning',
                         'error', etc.)
         :type  msg_type: str
@@ -869,7 +885,7 @@ class EODMSRAPI:
 
         # Set timestamp
         if self.show_timestamp:
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
             timestamp = f"{current_time.strftime('%Y-%m-%d %H:%M:%S')} | "
         else:
             timestamp = ''
@@ -888,14 +904,14 @@ class EODMSRAPI:
         Orders the metadata keys of RAPI results.
 
         :param results:
-        :type  results: list
+        :type  results: list[dict]
         :param keys: A list of keys in the proper order (the list does not
                     have to contain all the keys, all remaining keys will
                     appear in their original order).
-        :type  keys: list
+        :type  keys: list[str]
 
         :return: The results in the specified order.
-        :rtype: list
+        :rtype: list[dict]
         """
 
         out_results = []
@@ -1019,11 +1035,8 @@ class EODMSRAPI:
                 start = None
                 end = None
                 if isinstance(rng, str):
-                    time_words = ['hour', 'day', 'week', 'month', 'year']
-
-                    if any(word in rng for word in time_words):
                         start = dateparser.parse(rng).strftime("%Y%m%d_%H%M%S")
-                        end = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    end = datetime.now().strftime("%Y%m%d_%H%M%S")
                 else:
                     if 'start' not in rng.keys():
                         break
@@ -1628,6 +1641,8 @@ class EODMSRAPI:
             for itm in unique_items:
                 item_id = itm['itemId']
                 cur_item = self._get_item_from_orders(item_id, orders)
+                if not cur_item:
+                    continue
                 order_id = cur_item['orderId']
                 status = cur_item['status']
                 record_id = cur_item['recordId']
@@ -2048,6 +2063,9 @@ class EODMSRAPI:
         :param dtstart: The start date for the date range of the query.
         :type  dtstart: datetime.datetime
         :param dtend: The end date for the date range of the query.
+                    If a start date is set, the end date will be now().
+                    If an end date is set without a start date, an error will
+                        occur.
         :type  dtend: datetime.datetime
         :param max_orders: The maximum number of orders to retrieve.
         :type  max_orders: int
@@ -2059,9 +2077,6 @@ class EODMSRAPI:
         :return: A JSON dictionary of the query results containing the orders.
         :rtype:  dict
         """
-
-        msg = "Getting list of current orders..."
-        self.log_msg(msg)
 
         tm_frm = '%Y-%m-%dT%H:%M:%SZ'
 
@@ -2082,6 +2097,9 @@ class EODMSRAPI:
                 logger.debug(f"RAPI URL:\n\n{query_url}\n")
 
                 # Send the query to the RAPI
+                
+                msg = "Getting list of orders..."
+                self.log_msg(msg)
                 res = self.rapi_session.submit(query_url, timeout=self.timeout_query,
                                    quiet=False)
 
@@ -2106,14 +2124,59 @@ class EODMSRAPI:
             return all_orders
 
         params = {}
-        if dtstart is not None:
-            params['dtstart'] = dtstart.strftime(tm_frm)
-            params['dtend'] = dtend.strftime(tm_frm)
+        extra_str = []
+        if dtstart is not None or dtend is not None:
+            if isinstance(dtstart, list):
+                dtstart = dtstart[0]
+            if isinstance(dtend, list):
+                dtend = dtend[0]
+
+            if dtstart and not dtend:
+                self.msg = "(Getting orders) A start date (dtstart) was " \
+                            "specified without an end date (dtend). Using " \
+                            "current time as end date."
+                self.log_msg(self.msg, 'warning')
+                dtend = datetime.now(timezone.utc)
+
+            if dtend and not dtstart:
+                self.msg = "(Getting orders) An end date (dtend) was " \
+                            "specified without a start date (dtstart). " \
+                            "Using start date of 1 month before end date."
+                self.log_msg(self.msg, 'warning')
+                dtstart = self._phrase_to_date(dtend) - relativedelta(months=1)
+
+            if dtstart:
+                params['dtstart'] = self._phrase_to_date(dtstart).strftime(tm_frm)
+            else:
+                self.msg = "(Getting orders) Could not determine start time. " \
+                            "Ignoring it."
+                self.log_msg(self.msg, 'warning')
+
+            if dtend:
+                params['dtend'] = self._phrase_to_date(dtend).strftime(tm_frm)
+            else:
+                self.msg = "(Getting orders) Could not determine end time. " \
+                            "Ignoring it."
+                self.log_msg(self.msg, 'warning')
+
         params['maxOrders'] = max_orders
         if status is not None:
             params['status'] = status.upper()
+        
+        if 'status' in params.keys():
+            extra_str.append(f"with status {params.get('status')}")
+
+        if 'dtstart' in params.keys() and 'dtend' in params.keys():
+            extra_str.append(f"between {params.get('dtstart')} " \
+                        f"and {params.get('dtend')}")
+
         param_str = urlencode(params)
 
+        if len(extra_str) == 0:
+            msg = f"Getting list of orders..."
+        else:
+            msg = f"Getting list of orders {' '.join(extra_str)}..."
+        self.log_msg(msg)
         query_url = f"{self.rapi_root}/order?{param_str}&format={out_format}"
 
         logger.debug(f"RAPI URL:\n\n{query_url}\n")
@@ -3085,6 +3148,81 @@ class EODMSRAPI:
                       
         # return unique_orders
 
+    def order_json(self, in_json, priority=None):
+        """
+        Sends a JSON order request to the EODMS RAPI.
+
+        :param in_json: The input JSON request.
+        :type  in_json: dict
+        :param priority: The priority for the Order request.
+        :type  priority: str
+
+        :return: A JSON of the order sent to the RAPI (or an error if the 
+                request was unsuccessful).
+        :rtype:  dict or str (error message)
+        """
+
+        # print(f"in_json: {in_json}")
+
+        msg = "Submitting order items..."
+        self.log_msg(msg, log_indent='\n\n\t', out_indent='\n')
+
+        # Set the RAPI URL for the POST
+        self.rapi_url = f"{self.rapi_root}/order"
+
+        # logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
+        self.log_msg(f"RAPI URL:\n\n{self.rapi_url}\n")
+
+        # Send the JSON request to the RAPI
+        time_submitted = datetime.now(tzlocal()).isoformat()
+
+        # Add the 'Content-Type' option to the header
+        self.rapi_session.add_header('Content-Type', 'application/json')
+
+        # Set the priority
+        if priority:
+            items = []
+            for item in in_json.get('items'):
+                item['priority'] = priority.title()
+                items.append(item)
+            in_json['items'] = items
+
+        post_json = json.dumps(in_json)
+        # logger.debug(f"RAPI POST:\n\n{post_json}\n")
+        self.log_msg(f"RAPI POST:\n\n{post_json}\n")
+        order_res = self.rapi_session.submit(self.rapi_url, 'POST', post_json)
+
+        if self.err_occurred:
+            return None
+
+        if order_res is None:
+            err = self._get_exception(order_res)
+            if isinstance(err, list):
+                self.msg = '; '.join(err)
+                self.log_msg(self.msg, 'warning')
+                return self.msg
+
+        if isinstance(order_res, requests.Response) and not order_res.ok:
+            self.err_msg = "Order submission failed."
+            self.log_msg(self.err_msg, 'error')
+            self.err_occurred = True
+            return self.err_msg
+        
+        if isinstance(order_res, QueryError):
+            self.err_msg = f"Order submission failed - " \
+                            f"{order_res.get_msgs(True)}"
+            self.log_msg(self.err_msg, 'error')
+            self.err_occurred = True
+            return order_res
+
+        # Add the time the order was submitted
+        items = order_res['items']
+
+        for i in items:
+            i['dateRapiOrdered'] = time_submitted
+
+        return items
+
     def order(self, results, priority="Medium", parameters=None,
               destinations=None):
         """
@@ -3144,6 +3282,10 @@ class EODMSRAPI:
         :param destinations: A JSON representation of an array of order
             destinations
         :type  destinations: list
+
+        :return: A JSON of the order sent to the RAPI (or an error if the 
+                request was unsuccessful).
+        :rtype:  dict or str (error message)
         """
 
         if destinations is None:
@@ -3200,7 +3342,7 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
 
         # Send the JSON request to the RAPI
-        time_submitted = datetime.datetime.now(tzlocal()).isoformat()
+        time_submitted = datetime.now(tzlocal()).isoformat()
         # order_res = None
         all_items = []
         for p in self.order_info:
