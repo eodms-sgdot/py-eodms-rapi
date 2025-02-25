@@ -1,7 +1,7 @@
 ##############################################################################
 #
 # Copyright (c) His Majesty the King in Right of Canada, as
-# represented by the Minister of Natural Resources, 2024
+# represented by the Minister of Natural Resources, 2025
 # 
 # Licensed under the MIT license
 # (see LICENSE or <http://opensource.org/licenses/MIT>) All files in the 
@@ -16,7 +16,7 @@ import logging.config
 import traceback
 import urllib
 import json
-import datetime
+from datetime import datetime, timedelta, timezone
 import pytz
 import time
 import dateparser
@@ -24,6 +24,7 @@ import re
 from lxml import html, etree
 import dateutil.parser
 from dateutil.tz import tzlocal
+from dateutil.relativedelta import relativedelta
 from urllib.parse import urlencode, urlparse
 # from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
@@ -102,7 +103,7 @@ class EODMSRAPI:
         self.feats = None
         self.max_results = None
         self.rapi_url = None
-        self.start = datetime.datetime.now()
+        self.start = datetime.now()
         self.logger = logger
         self.err_occurred = False
         self.auth_err = False
@@ -394,7 +395,7 @@ class EODMSRAPI:
 
         if in_forms is None:
             in_forms = ['%Y-%m-%d %H:%M:%S.%f']
-        if isinstance(date, datetime.datetime):
+        if isinstance(date, datetime):
             return date.isoformat() if out_form == 'iso' \
                         else date.strftime(out_form)
         elif isinstance(date, str):
@@ -404,7 +405,7 @@ class EODMSRAPI:
 
             for form in in_forms:
                 try:
-                    out_date = datetime.datetime.strptime(date, form)
+                    out_date = datetime.strptime(date, form)
                     return out_date if out == 'date' \
                             else out_date.strftime(out_form)
                 except ValueError as e:
@@ -608,10 +609,10 @@ class EODMSRAPI:
         dates.sort()
 
         start = dates[0]
-        start = start - datetime.timedelta(hours=0, minutes=1)
+        start = start - timedelta(hours=0, minutes=1)
 
         end = dates[-1]
-        end = end + datetime.timedelta(hours=0, minutes=1)
+        end = end + timedelta(hours=0, minutes=1)
 
         return start, end
 
@@ -778,6 +779,21 @@ class EODMSRAPI:
             if str(o['itemId']) == str(item_id):
                 return o
 
+    def _phrase_to_date(self, in_date):
+        """
+        Converts a date phrase to a date format for the RAPI.
+
+        :param in_date: The date phrase to convert.
+        :type  in_date: str
+        """
+
+        if isinstance(in_date, datetime):
+            return in_date
+        elif isinstance(in_date, str):
+            return dateparser.parse(in_date)
+        else:
+            return None
+
     def is_json(self, my_json):
         """
         Checks to see in the input item is in JSON format.
@@ -869,7 +885,7 @@ class EODMSRAPI:
 
         # Set timestamp
         if self.show_timestamp:
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
             timestamp = f"{current_time.strftime('%Y-%m-%d %H:%M:%S')} | "
         else:
             timestamp = ''
@@ -1019,11 +1035,8 @@ class EODMSRAPI:
                 start = None
                 end = None
                 if isinstance(rng, str):
-                    time_words = ['hour', 'day', 'week', 'month', 'year']
-
-                    if any(word in rng for word in time_words):
-                        start = dateparser.parse(rng).strftime("%Y%m%d_%H%M%S")
-                        end = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    start = dateparser.parse(rng).strftime("%Y%m%d_%H%M%S")
+                    end = datetime.now().strftime("%Y%m%d_%H%M%S")
                 else:
                     if 'start' not in rng.keys():
                         break
@@ -2050,6 +2063,9 @@ class EODMSRAPI:
         :param dtstart: The start date for the date range of the query.
         :type  dtstart: datetime.datetime
         :param dtend: The end date for the date range of the query.
+                    If a start date is set, the end date will be now().
+                    If an end date is set without a start date, an error will
+                        occur.
         :type  dtend: datetime.datetime
         :param max_orders: The maximum number of orders to retrieve.
         :type  max_orders: int
@@ -2061,9 +2077,6 @@ class EODMSRAPI:
         :return: A JSON dictionary of the query results containing the orders.
         :rtype:  dict
         """
-
-        msg = "Getting list of current orders..."
-        self.log_msg(msg)
 
         tm_frm = '%Y-%m-%dT%H:%M:%SZ'
 
@@ -2084,6 +2097,9 @@ class EODMSRAPI:
                 logger.debug(f"RAPI URL:\n\n{query_url}\n")
 
                 # Send the query to the RAPI
+                
+                msg = "Getting list of orders..."
+                self.log_msg(msg)
                 res = self.rapi_session.submit(query_url, timeout=self.timeout_query,
                                    quiet=False)
 
@@ -2108,14 +2124,59 @@ class EODMSRAPI:
             return all_orders
 
         params = {}
-        if dtstart is not None:
-            params['dtstart'] = dtstart.strftime(tm_frm)
-            params['dtend'] = dtend.strftime(tm_frm)
+        extra_str = []
+        if dtstart is not None or dtend is not None:
+            if isinstance(dtstart, list):
+                dtstart = dtstart[0]
+            if isinstance(dtend, list):
+                dtend = dtend[0]
+
+            if dtstart and not dtend:
+                self.msg = "(Getting orders) A start date (dtstart) was " \
+                            "specified without an end date (dtend). Using " \
+                            "current time as end date."
+                self.log_msg(self.msg, 'warning')
+                dtend = datetime.now(timezone.utc)
+
+            if dtend and not dtstart:
+                self.msg = "(Getting orders) An end date (dtend) was " \
+                            "specified without a start date (dtstart). " \
+                            "Using start date of 1 month before end date."
+                self.log_msg(self.msg, 'warning')
+                dtstart = self._phrase_to_date(dtend) - relativedelta(months=1)
+
+            if dtstart:
+                params['dtstart'] = self._phrase_to_date(dtstart).strftime(tm_frm)
+            else:
+                self.msg = "(Getting orders) Could not determine start time. " \
+                            "Ignoring it."
+                self.log_msg(self.msg, 'warning')
+
+            if dtend:
+                params['dtend'] = self._phrase_to_date(dtend).strftime(tm_frm)
+            else:
+                self.msg = "(Getting orders) Could not determine end time. " \
+                            "Ignoring it."
+                self.log_msg(self.msg, 'warning')
+
         params['maxOrders'] = max_orders
         if status is not None:
             params['status'] = status.upper()
+        
+        if 'status' in params.keys():
+            extra_str.append(f"with status {params.get('status')}")
+
+        if 'dtstart' in params.keys() and 'dtend' in params.keys():
+            extra_str.append(f"between {params.get('dtstart')} " \
+                        f"and {params.get('dtend')}")
+
         param_str = urlencode(params)
 
+        if len(extra_str) == 0:
+            msg = f"Getting list of orders..."
+        else:
+            msg = f"Getting list of orders {' '.join(extra_str)}..."
+        self.log_msg(msg)
         query_url = f"{self.rapi_root}/order?{param_str}&format={out_format}"
 
         logger.debug(f"RAPI URL:\n\n{query_url}\n")
@@ -3113,7 +3174,7 @@ class EODMSRAPI:
         self.log_msg(f"RAPI URL:\n\n{self.rapi_url}\n")
 
         # Send the JSON request to the RAPI
-        time_submitted = datetime.datetime.now(tzlocal()).isoformat()
+        time_submitted = datetime.now(tzlocal()).isoformat()
 
         # Add the 'Content-Type' option to the header
         self.rapi_session.add_header('Content-Type', 'application/json')
@@ -3281,7 +3342,7 @@ class EODMSRAPI:
         logger.debug(f"RAPI URL:\n\n{self.rapi_url}\n")
 
         # Send the JSON request to the RAPI
-        time_submitted = datetime.datetime.now(tzlocal()).isoformat()
+        time_submitted = datetime.now(tzlocal()).isoformat()
         # order_res = None
         all_items = []
         for p in self.order_info:
