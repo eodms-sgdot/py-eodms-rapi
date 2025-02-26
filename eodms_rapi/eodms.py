@@ -1035,7 +1035,7 @@ class EODMSRAPI:
                 start = None
                 end = None
                 if isinstance(rng, str):
-                        start = dateparser.parse(rng).strftime("%Y%m%d_%H%M%S")
+                    start = dateparser.parse(rng).strftime("%Y%m%d_%H%M%S")
                     end = datetime.now().strftime("%Y%m%d_%H%M%S")
                 else:
                     if 'start' not in rng.keys():
