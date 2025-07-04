@@ -2901,27 +2901,42 @@ class EODMSRAPI:
             else:
                 result_field.append(field_id)
 
-        # Get the geometry field and add it to resultField
-        footprint_id = self._get_field_id('Footprint', field_type='results')
+        for field in ['Footprint', 'Spatial Resolution', 'Download Link',
+                      'Archive ID']:
+            field_id = self._get_field_id(field, field_type='results')
         if self.err_occurred:
             return None
-        if footprint_id is not None:
-            result_field.append(footprint_id)
+            if field_id is not None:
+                result_field.append(field_id)
 
-        # Get the pixel spacing field and add it to resultField
-        pixspace_id = self._get_field_id('Spatial Resolution',
-                                         field_type='results')
-        if self.err_occurred:
-            return None
-        if pixspace_id is not None:
-            result_field.append(pixspace_id)
+        # # Get the geometry field and add it to resultField
+        # footprint_id = self._get_field_id('Footprint', field_type='results')
+        # if self.err_occurred:
+        #     return None
+        # if footprint_id is not None:
+        #     result_field.append(footprint_id)
 
-        # Get the pixel spacing field and add it to resultField
-        dl_id = self._get_field_id('Download Link', field_type='results')
-        if self.err_occurred:
-            return None
-        if dl_id is not None:
-            result_field.append(dl_id)
+        # # Get the pixel spacing field and add it to resultField
+        # pixspace_id = self._get_field_id('Spatial Resolution',
+        #                                  field_type='results')
+        # if self.err_occurred:
+        #     return None
+        # if pixspace_id is not None:
+        #     result_field.append(pixspace_id)
+
+        # # Get the pixel spacing field and add it to resultField
+        # dl_id = self._get_field_id('Download Link', field_type='results')
+        # if self.err_occurred:
+        #     return None
+        # if dl_id is not None:
+        #     result_field.append(dl_id)
+
+        # # Get the Archive Id and add it to resultField
+        # dl_id = self._get_field_id('Archive ID', field_type='results')
+        # if self.err_occurred:
+        #     return None
+        # if dl_id is not None:
+        #     result_field.append(dl_id)
 
         self.search_params['resultField'] = ','.join(result_field)
 
