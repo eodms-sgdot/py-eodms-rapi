@@ -2904,8 +2904,10 @@ class EODMSRAPI:
         for field in ['Footprint', 'Spatial Resolution', 'Download Link',
                       'Archive ID']:
             field_id = self._get_field_id(field, field_type='results')
-        if self.err_occurred:
-            return None
+            
+            if self.err_occurred:
+                return None
+            
             if field_id is not None:
                 result_field.append(field_id)
 
