@@ -37,8 +37,8 @@ jobs:
             echo "All versions are equal"
           else
             echo "At least one version is not equal"
-            echo "SETUP_VERSION: ${SETUP_VERSION}"
-            echo "CFG_VERSION: ${CFG_VERSION}"
-            echo "PY_VERSION: ${PY_VERSION}"
+            echo "setup.py: ${SETUP_VERSION}"
+            echo "setup.cfg: ${CFG_VERSION}"
+            echo "__version__.py: ${PY_VERSION}"
             exit 1
           fi
