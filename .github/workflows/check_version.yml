@@ -1,0 +1,44 @@
+
+name: py-eodms-rapi Version Check
+
+# Controls when the workflow will run
+on:
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        with:
+          ref: 'main'
+
+      # List files
+      - name: List files
+        run: ls
+
+      # Runs a single command using the runners shell
+      - name: Run py-eodms-rapi Version Check
+        # continue-on-error: true
+        run: |
+          SETUP_VERSION=`python setup.py --version`
+          CFG_VERSION=`python -c 'from setuptools.config.setupcfg import read_configuration as c; print(c("setup.cfg")["metadata"]["version"])'`
+          PY_VERSION=`python -c 'from eodms_rapi import __version__; print(__version__)'`
+
+          if [[ "$SETUP_VERSION" == "$CFG_VERSION" ]] && [[ "$CFG_VERSION" == "$PY_VERSION" ]]; then
+            echo "All versions are equal"
+          else
+            echo "At least one version is not equal"
+            echo "SETUP_VERSION: ${SETUP_VERSION}"
+            echo "CFG_VERSION: ${CFG_VERSION}"
+            echo "PY_VERSION: ${PY_VERSION}"
+            exit 1
+          fi
