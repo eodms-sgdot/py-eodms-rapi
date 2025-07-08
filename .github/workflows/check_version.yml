@@ -25,6 +25,11 @@ jobs:
       - name: List files
         run: ls
 
+      # Install package from setup.py
+      - name: Install package from setup.py
+        run: |
+          sudo python setup.py install
+
       # Runs a single command using the runners shell
       - name: Run py-eodms-rapi Version Check
         # continue-on-error: true
