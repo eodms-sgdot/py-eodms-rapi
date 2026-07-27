@@ -13,7 +13,7 @@ The package is installed using the pip command
 
 .. code-block:: bash
 
-   pip install py-eodms-rapi -U
+   pip install "git+https://github.com/eodms-sgdot/py-eodms-rapi.git" -U
 
 The installation will also add the following packages:
 
@@ -105,7 +105,7 @@ License
 -------
 
 Copyright (c) His Majesty the King in Right of Canada, as
-represented by the Minister of Natural Resources, 2024.
+represented by the Minister of Natural Resources, 2026.
 
 Licensed under the MIT license
 (see LICENSE or <http://opensource.org/licenses/MIT>) All files in the 
