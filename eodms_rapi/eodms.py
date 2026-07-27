@@ -1,7 +1,7 @@
 ##############################################################################
 #
 # Copyright (c) His Majesty the King in Right of Canada, as
-# represented by the Minister of Natural Resources, 2025
+# represented by the Minister of Natural Resources, 2026
 # 
 # Licensed under the MIT license
 # (see LICENSE or <http://opensource.org/licenses/MIT>) All files in the 
@@ -23,7 +23,7 @@ import pytz
 import time
 import dateparser
 import re
-from lxml import html, etree
+# from lxml import html, etree
 import dateutil.parser
 from dateutil.tz import tzlocal
 from urllib.parse import urlencode, urlparse, parse_qsl, urlunparse, quote
@@ -77,8 +77,8 @@ class EODMSRAPI:
 
         # Create session
         self.collection = None
-        # self._session = requests.Session()
-        # self._session.auth = (username, password)
+        self._session = requests.Session()
+        self._session.auth = (username, password)
         self._email = 'eodms-sgdot@nrcan-rncan.gc.ca'
 
         self.rapi_root = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi"
