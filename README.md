@@ -1,6 +1,10 @@
 EODMS RAPI Client
 =================
 
+> ⚠️ **DEPRECATED** - This project is deprecated as of April 1, 2026. It has been replaced by [eodms-cli](https://github.com/eodms-sgdot/eodms-cli) and [eodms-py](https://github.com/eodms-sgdot/eodms-py). 
+> 
+> **Transition Period:** One year (until March 31, 2027). After this date, this repository will no longer be maintained.
+
 ## Overview
 
 EODMS RAPI Client is a Python3 package used to access the REST API service provided by the [Earth Observation Data Management System (EODMS)](https://www.eodms-sgdot.nrcan-rncan.gc.ca/index-en.html) from Natural Resources Canada.
